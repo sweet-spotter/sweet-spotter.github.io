@@ -1,5 +1,5 @@
 <h1 class="app-main-title">
-  Sweet Aware
+  Sweet Spotter
 </h1>
 <div *ngIf="scannerActive" class="scanner-overlay">
   <button class="close-btn" (click)="closeScanner()">✕</button>
@@ -9,9 +9,20 @@
   <button (click)="startScanner()" class="scan-btn">Scan Barcode</button>
 </div>
 <div *ngIf="food" class="food-card">
-  <h1 class="food-title">{{ food.description }}</h1>
+  <h2 class="food-title">{{ food.description }}</h2>
+  <div *ngIf="food.sweeteners?.length > 0" class="sweetener-highlight">
+    <span *ngFor="let s of food.sweeteners"
+      [ngClass]="{
+        'sweetener-chip': true,
+        'sweetener-green': s?.rating === 'green',
+        'sweetener-yellow': s?.rating === 'yellow',
+        'sweetener-red': s?.rating === 'red'
+      }">
+      {{ s?.name | titlecase }}
+    </span>
+  </div>  
   <ul class="ingredient-list">
-    <li *ngFor="let ingredient of food.ingredients"
+    <li *ngFor="let ingredient of food.ingredients | orderBySweetener"
         [ngClass]="{
           'sweetener': ingredient.sweeter,
           'sweetener-green': ingredient.sweeter?.rating === 'green',
@@ -24,9 +35,9 @@
               'sweet-dot-yellow': ingredient.sweeter?.rating === 'yellow',
               'sweet-dot-red': ingredient.sweeter?.rating === 'red'
             }"></span>
-      {{ ingredient.name }}
+      {{ ingredient.name | titlecase }}
       <span *ngIf="ingredient.sweeter" class="sweet-label">
-        Sweetener ({{ ingredient.sweeter.rating | titlecase }})
+        {{ ingredient.sweeter.name | titlecase }}
       </span>
     </li>
   </ul>

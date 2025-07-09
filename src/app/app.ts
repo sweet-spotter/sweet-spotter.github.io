@@ -3,6 +3,18 @@ import { RouterOutlet } from '@angular/router';
 import { Html5Qrcode } from "html5-qrcode";
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
+import { Pipe, PipeTransform } from '@angular/core';
+
+@Pipe({ name: 'orderBySweetener' })
+export class OrderBySweetenerPipe implements PipeTransform {
+  transform(ingredients: Ingredient[]): Ingredient[] {
+    return [...ingredients].sort((a, b) => {
+      if (a.sweeter && !b.sweeter) return -1;
+      if (!a.sweeter && b.sweeter) return 1;
+      return 0;
+    });
+  }
+}
 
 interface FoodSearchResponse {
   totalHits: number;
@@ -24,16 +36,17 @@ interface Sweetener {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, HttpClientModule, CommonModule],
+  imports: [RouterOutlet, HttpClientModule, CommonModule, OrderBySweetenerPipe],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
   food: any = null;
-  scannerActive = false;  
-  private sweeteners: Sweetener[] = [{
+  scannerActive = false;
+  private html5QrCode: Html5Qrcode | null = null;
+  private sweetenerDict: Sweetener[] = [{
     name: 'Sugar',
-    aliases: ['sugar', 'table sugar', 'granulated sugar'],
+    aliases: ['sugar'],
     rating: 'red'
   }, {
     name: 'Stevia',
@@ -71,39 +84,41 @@ export class App implements OnInit {
   ngOnInit(): void {}
 
   startScanner(): void {
+    this.food = null;
     this.scannerActive = true;
     setTimeout(() => this.initScanner(), 0); // ensure DOM is updated
   }
 
   closeScanner(): void {
     this.scannerActive = false;
+    if (this.html5QrCode) {
+      this.html5QrCode.stop().then(() => {
+        console.log("Scanner stopped.");
+      }).catch(err => {
+        console.error("Error stopping scanner:", err);
+      });
+    }
   }
 
   private initScanner(): void {
-    Html5Qrcode.getCameras().then(devices => {
-      if (devices && devices.length) {
-        const cameraId = devices[0].id;
-        const html5QrCode = new Html5Qrcode("reader");
-        html5QrCode.start(
-          cameraId,
-          { fps: 10 },
-          (decodedText, decodedResult) => {
-            console.log(`Code matched = ${decodedText}`, decodedResult);
-            html5QrCode.stop();
-            this.scannerActive = false;
-            const barcode = decodedText.substring(1);
-            this.lookupFood(barcode);
-          },
-          (errorMessage) => {
-            // handle scan error
-          }
-        ).catch((err) => {
-          console.error(`Unable to start scanning, error: ${err}`);
-          this.scannerActive = false;
-        });
+    this.html5QrCode = new Html5Qrcode("reader");
+    this.html5QrCode.start(
+      { facingMode: "environment" },
+      { fps: 10 },
+      (decodedText, decodedResult) => {
+        console.log(`Code matched = ${decodedText}`, decodedResult);
+        if (this.html5QrCode) {
+          this.html5QrCode.stop();
+        }
+        this.scannerActive = false;
+        const barcode = decodedText.substring(1);
+        this.lookupFood(barcode);
+      },
+      (errorMessage) => {
+        // handle scan error
       }
-    }).catch(err => {
-      // handle err
+    ).catch((err) => {
+      console.error(`Unable to start scanning, error: ${err}`);
       this.scannerActive = false;
     });
   }
@@ -147,6 +162,7 @@ export class App implements OnInit {
   private setFoodFromUsda(foodData: any): void {
     this.food = foodData;
     this.food.ingredients = this.parseIngredients(foodData.ingredients);
+    this.food.sweeteners = this.getSweetenersFromIngredients(this.food.ingredients);
   }
 
   private setFoodFromOpenFoodFacts(product: any): void {
@@ -156,6 +172,7 @@ export class App implements OnInit {
     };
     if (product.ingredients_text) {
       this.food.ingredients = this.parseIngredients(product.ingredients_text);
+      this.food.sweeteners = this.getSweetenersFromIngredients(this.food.ingredients);
     }
   }
 
@@ -170,11 +187,20 @@ export class App implements OnInit {
 
   private findSweetener(ingredient: string): Sweetener | null {
     const normalizedIngredient = ingredient.toLowerCase();
-    for (const sweetener of this.sweeteners) {
+    for (const sweetener of this.sweetenerDict) {
       if (sweetener.aliases.some(alias => normalizedIngredient.includes(alias))) {
         return sweetener;
       }
     }
     return null;
   }
+
+  private getSweetenersFromIngredients(ingredients: Ingredient[]): Sweetener[] {
+    return this.food.ingredients
+      .map((ingredient: any) => ingredient.sweeter)
+      .filter((sweeter: Sweetener | null, index: number, arr: (Sweetener | null)[]) =>
+        sweeter !== null && arr.findIndex(s => s && sweeter && s.name === sweeter.name) === index
+      );
+  }
+
 }
