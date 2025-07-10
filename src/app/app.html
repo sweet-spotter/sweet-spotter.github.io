@@ -1,45 +1,94 @@
-<h1 class="app-main-title">
-  Sweet Spotter
-</h1>
-<div *ngIf="scannerActive" class="scanner-overlay">
-  <button class="close-btn" (click)="closeScanner()">✕</button>
-  <div id="reader" class="reader-full"></div>
+<div *ngIf="!scannerActive">
+  <h1 class="app-main-title">
+    Sweet Spotter
+  </h1>
+  <p style="text-align: center;">Easily locate non-nutritive sweeteners in a product by scanning the barcode</p>
 </div>
 <div style="text-align:center; margin: 2rem 0;">
-  <button (click)="startScanner()" class="scan-btn">Scan Barcode</button>
+  <ng-container *ngIf="scannerActive">
+    <button (click)="toggleScanner()" class="scan-btn">
+      Close Scanner
+    </button>
+    <div style="margin: 1rem 0;" *ngIf="cameras && cameras.length > 1">
+      <label for="cameraSelect" style="color:#fff; margin-right:0.5em;">Camera:</label>
+      <select id="cameraSelect" [(ngModel)]="selectedCameraId" (change)="onCameraChange($event)" style="padding:0.4em 1em; border-radius:6px;">
+        <option *ngFor="let cam of cameras" [value]="cam.id">{{ cam.label || 'Camera ' + cam.id }}</option>
+      </select>
+    </div>
+  </ng-container>
+  <ng-container *ngIf="!scannerActive">
+    <button (click)="toggleScanner()" class="scan-btn">
+      Scan Barcode
+    </button>
+  </ng-container>
 </div>
-<div *ngIf="food" class="food-card">
+<div *ngIf="scannerActive" id="reader" width="600px"></div>
+<div *ngIf="!scannerActive && noItemFound" style="text-align: center; margin-top: 2rem;">
+  <p>No item found. Please try scanning again.</p>
+</div>
+<div *ngIf="!scannerActive && food" class="food-card">
   <h2 class="food-title">{{ food.description }}</h2>
   <div *ngIf="food.sweeteners?.length > 0" class="sweetener-highlight">
     <span *ngFor="let s of food.sweeteners"
       [ngClass]="{
         'sweetener-chip': true,
-        'sweetener-green': s?.rating === 'green',
-        'sweetener-yellow': s?.rating === 'yellow',
-        'sweetener-red': s?.rating === 'red'
+        'sweetener-green': s?.rating === 'safe',
+        'sweetener-yellow': s?.rating === 'caution',
+        'sweetener-red': s?.rating === 'avoid'
       }">
-      {{ s?.name | titlecase }}
+      {{ s?.name | titlecase }} ({{s?.rating}})
     </span>
-  </div>  
+  </div>
+
+  <div *ngIf="!food.ingredients || food.ingredients.length === 0">
+    <p class="no-ingredients">No ingredients found for this item</p>
+  </div>
+
+  <!-- Ingredient List with Sweetener Badge and Children -->
   <ul class="ingredient-list">
-    <li *ngFor="let ingredient of food.ingredients | orderBySweetener"
-        [ngClass]="{
-          'sweetener': ingredient.sweeter,
-          'sweetener-green': ingredient.sweeter?.rating === 'green',
-          'sweetener-yellow': ingredient.sweeter?.rating === 'yellow',
-          'sweetener-red': ingredient.sweeter?.rating === 'red'
-        }">
-      <span class="ingredient-dot"
-            [ngClass]="{
-              'sweet-dot-green': ingredient.sweeter?.rating === 'green',
-              'sweet-dot-yellow': ingredient.sweeter?.rating === 'yellow',
-              'sweet-dot-red': ingredient.sweeter?.rating === 'red'
-            }"></span>
-      {{ ingredient.name | titlecase }}
-      <span *ngIf="ingredient.sweeter" class="sweet-label">
-        {{ ingredient.sweeter.name | titlecase }}
-      </span>
-    </li>
+    <ng-container *ngFor="let ingredient of food.ingredients | orderBySweetener">
+      <li class="ingredient-top"
+          [ngClass]="{
+            'sweetener': ingredient.sweeter,
+            'sweetener-green': ingredient.sweeter?.rating === 'safe',
+            'sweetener-yellow': ingredient.sweeter?.rating === 'caution',
+            'sweetener-red': ingredient.sweeter?.rating === 'avoid'
+          }">
+        <span class="ingredient-dot"
+              [ngClass]="{
+                'sweet-dot-green': ingredient.sweeter?.rating === 'safe',
+                'sweet-dot-yellow': ingredient.sweeter?.rating === 'caution',
+                'sweet-dot-red': ingredient.sweeter?.rating === 'avoid'
+              }"></span>
+        {{ ingredient.name | titlecase }}
+        <span *ngIf="ingredient.sweeter" class="sweet-badge">
+          {{ ingredient.sweeter.name | titlecase }}
+        </span>
+        <!-- Children -->
+        <ul class="ingredient-list child-list" *ngIf="ingredient.children?.length">
+          <ng-container *ngFor="let child of ingredient.children">
+            <li
+              [ngClass]="{
+                'sweetener': child.sweeter,
+                'sweetener-green': child.sweeter?.rating === 'safe',
+                'sweetener-yellow': child.sweeter?.rating === 'caution',
+                'sweetener-red': child.sweeter?.rating === 'avoid'
+              }">
+              <span class="ingredient-dot"
+                    [ngClass]="{
+                      'sweet-dot-green': child.sweeter?.rating === 'safe',
+                      'sweet-dot-yellow': child.sweeter?.rating === 'caution',
+                      'sweet-dot-red': child.sweeter?.rating === 'avoid'
+                    }"></span>
+              {{ child.name | titlecase }}
+              <span *ngIf="child.sweeter" class="sweet-badge">
+                {{ child.sweeter.name | titlecase }}
+              </span>
+            </li>
+          </ng-container>
+        </ul>
+      </li>
+    </ng-container>
   </ul>
 </div>
 

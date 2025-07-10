@@ -1,4 +1,9 @@
-body, :host {
+@import '@angular/material/prebuilt-themes/magenta-violet.css';
+
+body {
     background: #181824;
     color: #f3f3fa;
 }
+
+html, body { height: 100%; }
+body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }

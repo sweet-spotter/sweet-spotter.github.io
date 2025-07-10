@@ -1,18 +1,41 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { Html5Qrcode } from "html5-qrcode";
+import { CameraDevice, Html5Qrcode } from "html5-qrcode";
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Pipe, PipeTransform } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { MatSnackBar } from '@angular/material/snack-bar';
 
 @Pipe({ name: 'orderBySweetener' })
 export class OrderBySweetenerPipe implements PipeTransform {
   transform(ingredients: Ingredient[]): Ingredient[] {
-    return [...ingredients].sort((a, b) => {
-      if (a.sweeter && !b.sweeter) return -1;
-      if (!a.sweeter && b.sweeter) return 1;
-      return 0;
-    });
+    // Helper to check if an ingredient or any of its children is a sweetener
+    const hasSweetener = (ingredient: Ingredient): boolean => {
+      if (ingredient.sweeter) return true;
+      if (ingredient.children) {
+        return ingredient.children.some(child => hasSweetener(child));
+      }
+      return false;
+    };
+
+    // Recursively sort children as well
+    const sortFn = (arr: Ingredient[]): Ingredient[] => {
+      return arr
+        .map(ingredient => ({
+          ...ingredient,
+          children: ingredient.children ? sortFn(ingredient.children) : undefined
+        }))
+        .sort((a, b) => {
+          const aHasSweetener = hasSweetener(a);
+          const bHasSweetener = hasSweetener(b);
+          if (aHasSweetener && !bHasSweetener) return -1;
+          if (!aHasSweetener && bHasSweetener) return 1;
+          return 0;
+        });
+    };
+
+    return sortFn(ingredients);
   }
 }
 
@@ -25,72 +48,128 @@ interface FoodSearchResponse {
 
 interface Ingredient {
   name: string;
+  children?: Ingredient[];
   sweeter: Sweetener | null;
 }
 
 interface Sweetener {
   name: string;
   aliases: string[];
-  rating: 'green' | 'yellow' | 'red';
+  rating: 'safe' | 'caution' | 'avoid';
 }
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, HttpClientModule, CommonModule, OrderBySweetenerPipe],
+  imports: [RouterOutlet, HttpClientModule, CommonModule, OrderBySweetenerPipe, FormsModule],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
   food: any = null;
   scannerActive = false;
+  cameras: CameraDevice[] = [];
+  selectedCameraId: string | null = null;
+  noItemFound = false;
   private html5QrCode: Html5Qrcode | null = null;
-  private sweetenerDict: Sweetener[] = [{
-    name: 'Sugar',
-    aliases: ['sugar'],
-    rating: 'red'
+  private _snackBar = inject(MatSnackBar);
+  private sweetenerDict: Sweetener[] = [
+  {
+    name: 'Allulose',
+    aliases: ['allulose', 'd-psicose'],
+    rating: 'safe'
+  }, {
+    name: 'Monk Fruit',
+    aliases: ['monk fruit', 'luo han guo', 'siraitia grosvenorii', 'swingle fruit', 'lo han kuo'],
+    rating: 'safe'
   }, {
     name: 'Stevia',
-    aliases: ['stevia', 'steviol glycosides'],
-    rating: 'green'
+    aliases: ['stevia', 'steviol', 'rebiana', 'rebaudioside', 'stevioside', 'reb a', 'reb m'],
+    rating: 'safe'
   }, {
     name: 'Aspartame',
     aliases: ['aspartame'],
-    rating: 'red'
+    rating: 'avoid'
   }, {
     name: 'Sucralose',
-    aliases: ['sucralose', 'Splenda'],
-    rating: 'yellow'
+    aliases: ['sucralose', 'splenda'],
+    rating: 'avoid'
   }, {
     name: 'Saccharin',
     aliases: ['saccharin'],
-    rating: 'red'
+    rating: 'avoid'
   }, {
     name: 'Acesulfame Potassium',
-    aliases: ['acesulfame potassium', 'Ace-K'],
-    rating: 'yellow'
+    aliases: ['acesulfame potassium', 'ace-k'],
+    rating: 'caution'
   }, {
     name: 'Neotame',
     aliases: ['neotame'],
-    rating: 'red'
+    rating: 'avoid'
+  }, {
+    name: 'Sugar Alcohol',
+    aliases: ['erythritol', 'xylitol', 'sorbitol', 'maltitol', 'isomalt', 'mannitol', 'xylitol'],
+    rating: 'safe'
   }];
-//    'sugar', 'stevia', 'aspartame', 'sucralose', 'saccharin', 'acesulfame potassium', 'neotame', 'glycerine',
-//    'sorbitol', 'xylitol', 'maltitol', 'erythritol', 'isomalt', 'mannitol', 'lactitol', 'steviol glycosides',
-//    'monk fruit extract', 'allulose', 'tagatose', 'trehalose', 'dextrose', 'glucose', 'fructose',
-//    'high fructose corn syrup', 'corn syrup solids', 'honey', 'agave nectar'
-//  ];
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient) {
+    navigator.permissions.query({name: 'camera'})
+    .then((permissionObj) => {
+      console.log('Camera permission ' + permissionObj.state);
+    })
+    .catch((error) => {
+      console.log('Got camera permission error :', error);
+    })
+  }
 
   ngOnInit(): void {}
 
-  startScanner(): void {
-    this.food = null;
-    this.scannerActive = true;
-    setTimeout(() => this.initScanner(), 0); // ensure DOM is updated
+  toggleScanner() {
+    this.scannerActive = !this.scannerActive;
+    if (this.scannerActive) {
+      this.startScanner();
+    } else {
+      this.closeScanner();
+    }
   }
 
-  closeScanner(): void {
-    this.scannerActive = false;
+  onCameraChange(event: Event): void {
+    if (this.scannerActive) {
+      this.closeScanner();
+      setTimeout(() => this.initScanner(), 0);
+    }
+  }
+
+  private startScanner(): void {
+    this.food = null;
+    this.noItemFound = false;
+    Html5Qrcode.getCameras().then(devices => {
+      this.cameras = devices;
+      if (devices.length === 0) {
+        console.error("No cameras found.");
+        this.scannerActive = false;
+        return;
+      }
+      const cameraPriorityOrder = ["back ultra wide", "back", "rear", "primary"];
+      // Find the first camera that matches our priority order
+      let priorityCamera: CameraDevice | undefined = undefined;
+      for (const priority of cameraPriorityOrder) {
+        const camera = devices.find(d => d.label.toLowerCase().includes(priority));
+        if (camera) {
+          priorityCamera = camera;
+          break;
+        }
+      }
+      if (priorityCamera) {
+        this.selectedCameraId = priorityCamera.id;
+      } else {
+        this.selectedCameraId = devices[0].id; // Fallback to first camera
+      }
+      console.log("Available cameras:", devices);
+      setTimeout(() => this.initScanner(), 0); // ensure DOM is updated
+    });
+  }
+
+  private closeScanner(): void {
     if (this.html5QrCode) {
       this.html5QrCode.stop().then(() => {
         console.log("Scanner stopped.");
@@ -101,30 +180,52 @@ export class App implements OnInit {
   }
 
   private initScanner(): void {
+    const readerDiv = document.getElementById("reader");
+    if (!readerDiv) {
+      setTimeout(() => this.initScanner(), 100); // Try again shortly
+      return;
+    }
+    if (this.selectedCameraId === null) {
+      this.showError("No camera selected. Please use a device with a camera.");
+      console.error("No camera selected.");
+      this.scannerActive = false;
+      return;
+    }
     this.html5QrCode = new Html5Qrcode("reader");
     this.html5QrCode.start(
-      { facingMode: "environment" },
-      { fps: 10 },
+      this.selectedCameraId,
+      { fps: 10,
+        qrbox: { width: 250, height: 250 }
+      },
       (decodedText, decodedResult) => {
+        if (decodedText.length != 8 && decodedText.length != 13 && decodedText.length != 12) {
+          console.warn(`Invalid code detected: ${decodedText}`);
+          return; // Ignore short codes
+        }
         console.log(`Code matched = ${decodedText}`, decodedResult);
         if (this.html5QrCode) {
           this.html5QrCode.stop();
         }
         this.scannerActive = false;
-        const barcode = decodedText.substring(1);
+        let barcode = decodedText;
+        // If the barcode starts with '0' and it's 13 characters long, remove it
+        if (decodedText.startsWith('0') && decodedText.length === 13) {
+          barcode = decodedText.substring(1);
+        }
         this.lookupFood(barcode);
       },
       (errorMessage) => {
-        // handle scan error
+        console.warn(`QR Code scan error: ${errorMessage}`);
       }
     ).catch((err) => {
+      this.showError("Unable to start scanner. Please check camera permissions.");
       console.error(`Unable to start scanning, error: ${err}`);
       this.scannerActive = false;
     });
   }
 
   private lookupFood(barcode: string): void {
-    const usdaApiUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&pageSize=10&api_key=DEMO_KEY`;
+    const usdaApiUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&pageSize=10&api_key=tyk58FSKxVyNkZEpBUaEKtGRIXhDOBwTyVekPw4W`;
     this.http.get<FoodSearchResponse>(usdaApiUrl).subscribe(
       response => {
         console.log('USDA API response:', response);
@@ -150,6 +251,7 @@ export class App implements OnInit {
           this.setFoodFromOpenFoodFacts(offResponse.product);
         } else {
           this.food = null;
+          this.noItemFound = true;
         }
       },
       offError => {
@@ -170,19 +272,44 @@ export class App implements OnInit {
       description: product.product_name,
       ingredients: []
     };
-    if (product.ingredients_text) {
-      this.food.ingredients = this.parseIngredients(product.ingredients_text);
+    const ingredientsText = product.ingredients_text_debug || product.ingredients_text;
+    if (ingredientsText) {
+      this.food.ingredients = this.parseIngredients(ingredientsText);
       this.food.sweeteners = this.getSweetenersFromIngredients(this.food.ingredients);
     }
   }
 
   private parseIngredients(ingredientsText: string): Ingredient[] {
-    return ingredientsText
-      .split(/,(?![^(]*\))/)
-      .map((ingredient: string) => {
-        const trimmed = ingredient.trim();
-        return { name: trimmed, sweeter: this.findSweetener(trimmed) };
-      });
+    // Split on commas not inside parentheses
+    const topLevelParts = ingredientsText.match(/(?:[^(,]+(?:\([^)]*\))?)+/g) || [];
+    return topLevelParts.map((part: string) => {
+      let name = part.trim();
+      // remove special characters like semicolons, colons, etc.
+      name = name.replace(/[\u00A0;:.]/g, ' ').replace(/ +/g, ' ');
+      let children: Ingredient[] | undefined = undefined;
+
+      // Check for parentheses
+      const parenMatch = name.match(/^(.*?)\s*\(([^)]+)\)$/);
+      if (parenMatch) {
+        const parentName = parenMatch[1].trim();
+        const childrenText = parenMatch[2];
+        // Only treat as children if there is a comma inside the parentheses
+        if (childrenText.includes(',')) {
+          name = parentName;
+          children = this.parseIngredients(childrenText);
+        } else {
+          // Keep the full name with parentheses if only one child (no comma)
+          name = name;
+          children = undefined;
+        }
+      }
+
+      return {
+        name,
+        sweeter: this.findSweetener(name),
+        ...(children ? { children } : {})
+      };
+    });
   }
 
   private findSweetener(ingredient: string): Sweetener | null {
@@ -201,6 +328,10 @@ export class App implements OnInit {
       .filter((sweeter: Sweetener | null, index: number, arr: (Sweetener | null)[]) =>
         sweeter !== null && arr.findIndex(s => s && sweeter && s.name === sweeter.name) === index
       );
+  }
+
+  private showError(message: string) {
+    this._snackBar.open(message, 'Close');
   }
 
 }

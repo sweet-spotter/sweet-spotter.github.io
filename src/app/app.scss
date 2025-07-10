@@ -1,7 +1,4 @@
-body, :host {
-    background: #181824;
-    color: #f3f3fa;
-}
+// File: src/app/app.scss
 
 .food-card {
     margin: 2rem auto;
@@ -27,29 +24,42 @@ body, :host {
     margin: 0;
 }
 
-.ingredient-list li {
+.ingredient-top {
     padding: 0.7rem 0.5rem;
     margin: 0.3rem 0;
     border-radius: 8px;
-    display: flex;
-    align-items: center;
+    text-align: left;
     background: #232336;
     box-shadow: 0 1px 4px rgba(0,0,0,0.10);
     transition: background 0.2s;
     color: #f3f3fa;
 }
 
+.ingredient-list li:not(.ingredient-top) {
+    display: block;
+    background: none;
+    box-shadow: none;
+    margin: 0.2em 0;
+    padding: 0.3em 0 0.3em 0.5em;
+    border-radius: 0;
+    color: inherit;
+    align-items: flex-start;
+}
+
 .sweetener-green {
   background: #1e3a2a !important;
   color: #7fffbe !important;
+  border-color: #00e676 !important;
 }
 .sweetener-yellow {
   background: #3a321a !important;
   color: #ffe68f !important;
+  border-color: #ffe600 !important;
 }
 .sweetener-red {
   background: #3a1a2f !important;
   color: #ff8fcf !important;
+  border-color: #ff5ca7 !important;
 }
 .sweet-dot-green {
   background: #00e676 !important;
@@ -99,49 +109,6 @@ body, :host {
     background: #e14b8f;
 }
 
-.scanner-overlay {
-    position: fixed;
-    z-index: 1000;
-    inset: 0;
-    background: #181824;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-}
-
-.reader-full {
-    width: 100vw;
-    height: 100vh;
-    max-width: 100vw;
-    max-height: 100vh;
-}
-
-.close-btn {
-    position: absolute;
-    top: 2rem;
-    right: 2rem;
-    background: #232336;
-    color: #fff;
-    border: none;
-    border-radius: 50%;
-    width: 44px;
-    height: 44px;
-    font-size: 2rem;
-    cursor: pointer;
-    z-index: 1100;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background 0.2s;
-}
-
-.close-btn:hover {
-    background: #ff5ca7;
-    color: #fff;
-}
-
 .app-main-title {
     text-align:center;
     margin-top:2rem;
@@ -170,17 +137,20 @@ body, :host {
     border: 2px solid transparent;
 }
 
-.sweetener-green {
-    border-color: #00e676 !important;
-    color: #7fffbe !important;
+.sweet-badge {
+  display: inline-block;
+  margin-left: 0.7em;
+  background: #ff5ca7;
+  color: #fff;
+  font-size: 0.85em;
+  font-weight: 600;
+  padding: 0.18em 0.85em;
+  border-radius: 1em;
+  letter-spacing: 0.5px;
+  vertical-align: middle;
 }
-
-.sweetener-yellow {
-    border-color: #ffe600 !important;
-    color: #ffe68f !important;
-}
-
-.sweetener-red {
-    border-color: #ff5ca7 !important;
-    color: #ff8fcf !important;
+.child-list {
+  margin-left: 2em;
+  margin-top: 0.3em;
+  padding-left: 1em;
 }
