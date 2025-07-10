@@ -6,6 +6,7 @@ import { CommonModule } from '@angular/common';
 import { Pipe, PipeTransform } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
+import { MatTableModule } from '@angular/material/table';
 
 @Pipe({ name: 'orderBySweetener' })
 export class OrderBySweetenerPipe implements PipeTransform {
@@ -60,7 +61,7 @@ interface Sweetener {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, HttpClientModule, CommonModule, OrderBySweetenerPipe, FormsModule],
+  imports: [RouterOutlet, HttpClientModule, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -70,9 +71,7 @@ export class App implements OnInit {
   cameras: CameraDevice[] = [];
   selectedCameraId: string | null = null;
   noItemFound = false;
-  private html5QrCode: Html5Qrcode | null = null;
-  private _snackBar = inject(MatSnackBar);
-  private sweetenerDict: Sweetener[] = [
+  sweetenerDict: Sweetener[] = [
   {
     name: 'Allulose',
     aliases: ['allulose', 'd-psicose'],
@@ -110,8 +109,12 @@ export class App implements OnInit {
     aliases: ['erythritol', 'xylitol', 'sorbitol', 'maltitol', 'isomalt', 'mannitol', 'xylitol'],
     rating: 'safe'
   }];
+  private html5QrCode: Html5Qrcode | null = null;
+  private _snackBar = inject(MatSnackBar);
 
   constructor(private http: HttpClient) {
+    //sort sweetenerDict by name
+    this.sweetenerDict = this.sweetenerDict.sort((a, b) => a.name.localeCompare(b.name));
     navigator.permissions.query({name: 'camera'})
     .then((permissionObj) => {
       console.log('Camera permission ' + permissionObj.state);

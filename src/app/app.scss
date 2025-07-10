@@ -138,19 +138,37 @@
 }
 
 .sweet-badge {
-  display: inline-block;
-  margin-left: 0.7em;
-  background: #ff5ca7;
-  color: #fff;
-  font-size: 0.85em;
-  font-weight: 600;
-  padding: 0.18em 0.85em;
-  border-radius: 1em;
-  letter-spacing: 0.5px;
-  vertical-align: middle;
+    display: inline-block;
+    margin-left: 0.7em;
+    background: #ff5ca7;
+    color: #fff;
+    font-size: 0.85em;
+    font-weight: 600;
+    padding: 0.18em 0.85em;
+    border-radius: 1em;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
 }
+
 .child-list {
-  margin-left: 2em;
-  margin-top: 0.3em;
-  padding-left: 1em;
+    margin-left: 2em;
+    margin-top: 0.3em;
+    padding-left: 1em;
+}
+
+.sweetener-table-container {
+    padding-left: 20px;
+    padding-right: 20px;
+    .table-sweetener-green {
+        color: #207a2b;
+        font-weight: bold;
+    }
+    .table-sweetener-yellow {
+        color: #b59d00;
+        font-weight: bold;
+    }
+    .table-sweetener-red {
+        color: #b00020;
+        font-weight: bold;
+    }
 }

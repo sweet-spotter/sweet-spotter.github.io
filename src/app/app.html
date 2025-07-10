@@ -92,4 +92,42 @@
   </ul>
 </div>
 
+<div *ngIf="!food" class="sweetener-table-container">
+  <h2>Sweetener Info</h2>
+  <table mat-table [dataSource]="sweetenerDict" class="mat-elevation-z2 sweetener-table" style="width:100%;">
+
+    <!-- Name Column -->
+    <ng-container matColumnDef="name">
+      <th mat-header-cell *matHeaderCellDef>Name</th>
+      <td mat-cell *matCellDef="let sweetener">{{ sweetener.name }}</td>
+    </ng-container>
+
+    <!-- Aliases Column -->
+    <ng-container matColumnDef="aliases">
+      <th mat-header-cell *matHeaderCellDef>Aliases</th>
+      <td mat-cell *matCellDef="let sweetener">{{ sweetener.aliases.join(', ') }}</td>
+    </ng-container>
+
+    <!-- Rating Column -->
+    <ng-container matColumnDef="rating">
+      <th mat-header-cell *matHeaderCellDef>Rating</th>
+      <td mat-cell *matCellDef="let sweetener">
+        <span [ngClass]="{
+          'table-sweetener-green': sweetener.rating === 'safe',
+          'table-sweetener-yellow': sweetener.rating === 'caution',
+          'table-sweetener-red': sweetener.rating === 'avoid'
+        }">{{ sweetener.rating | titlecase }}</span>
+      </td>
+    </ng-container>
+
+    <tr mat-header-row *matHeaderRowDef="['name', 'aliases', 'rating']"></tr>
+    <tr mat-row *matRowDef="let row; columns: ['name', 'aliases', 'rating'];"
+        [ngClass]="{
+          'safe': row.rating === 'safe',
+          'caution': row.rating === 'caution',
+          'avoid': row.rating === 'avoid'
+        }"></tr>
+  </table>
+</div>
+
 <router-outlet />
