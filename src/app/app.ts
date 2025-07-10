@@ -7,36 +7,21 @@ import { Pipe, PipeTransform } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 
 @Pipe({ name: 'orderBySweetener' })
 export class OrderBySweetenerPipe implements PipeTransform {
   transform(ingredients: Ingredient[]): Ingredient[] {
-    // Helper to check if an ingredient or any of its children is a sweetener
-    const hasSweetener = (ingredient: Ingredient): boolean => {
-      if (ingredient.sweeter) return true;
-      if (ingredient.children) {
-        return ingredient.children.some(child => hasSweetener(child));
-      }
-      return false;
-    };
-
-    // Recursively sort children as well
-    const sortFn = (arr: Ingredient[]): Ingredient[] => {
-      return arr
-        .map(ingredient => ({
-          ...ingredient,
-          children: ingredient.children ? sortFn(ingredient.children) : undefined
-        }))
-        .sort((a, b) => {
-          const aHasSweetener = hasSweetener(a);
-          const bHasSweetener = hasSweetener(b);
-          if (aHasSweetener && !bHasSweetener) return -1;
-          if (!aHasSweetener && bHasSweetener) return 1;
-          return 0;
-        });
-    };
-
-    return sortFn(ingredients);
+    // Sort ingredients with sweeteners first
+    return ingredients
+      .slice()
+      .sort((a, b) => {
+        const aHasSweetener = !!a.sweeter;
+        const bHasSweetener = !!b.sweeter;
+        if (aHasSweetener && !bHasSweetener) return -1;
+        if (!aHasSweetener && bHasSweetener) return 1;
+        return 0;
+      });
   }
 }
 
@@ -49,7 +34,6 @@ interface FoodSearchResponse {
 
 interface Ingredient {
   name: string;
-  children?: Ingredient[];
   sweeter: Sweetener | null;
 }
 
@@ -61,7 +45,7 @@ interface Sweetener {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, HttpClientModule, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule],
+  imports: [RouterOutlet, HttpClientModule, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule, MatProgressSpinnerModule],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -71,6 +55,7 @@ export class App implements OnInit {
   cameras: CameraDevice[] = [];
   selectedCameraId: string | null = null;
   noItemFound = false;
+  loading = false;
   sweetenerDict: Sweetener[] = [
   {
     name: 'Allulose',
@@ -218,7 +203,6 @@ export class App implements OnInit {
         this.lookupFood(barcode);
       },
       (errorMessage) => {
-        console.warn(`QR Code scan error: ${errorMessage}`);
       }
     ).catch((err) => {
       this.showError("Unable to start scanner. Please check camera permissions.");
@@ -228,12 +212,15 @@ export class App implements OnInit {
   }
 
   private lookupFood(barcode: string): void {
+    this.loading = true;
+    this.noItemFound = false;
     const usdaApiUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&pageSize=10&api_key=tyk58FSKxVyNkZEpBUaEKtGRIXhDOBwTyVekPw4W`;
     this.http.get<FoodSearchResponse>(usdaApiUrl).subscribe(
       response => {
         console.log('USDA API response:', response);
         if (response.totalHits > 0 && response.foods[0]?.ingredients) {
           this.setFoodFromUsda(response.foods[0]);
+          this.loading = false;
         } else {
           this.lookupOpenFoodFacts(barcode);
         }
@@ -256,10 +243,13 @@ export class App implements OnInit {
           this.food = null;
           this.noItemFound = true;
         }
+        this.loading = false;
       },
       offError => {
         console.error('Open Food Facts API error:', offError);
         this.food = null;
+        this.noItemFound = true;
+        this.loading = false;
       }
     );
   }
@@ -283,36 +273,25 @@ export class App implements OnInit {
   }
 
   private parseIngredients(ingredientsText: string): Ingredient[] {
-    // Split on commas not inside parentheses
-    const topLevelParts = ingredientsText.match(/(?:[^(,]+(?:\([^)]*\))?)+/g) || [];
-    return topLevelParts.map((part: string) => {
-      let name = part.trim();
-      // remove special characters like semicolons, colons, etc.
-      name = name.replace(/[\u00A0;:.]/g, ' ').replace(/ +/g, ' ');
-      let children: Ingredient[] | undefined = undefined;
-
-      // Check for parentheses
-      const parenMatch = name.match(/^(.*?)\s*\(([^)]+)\)$/);
-      if (parenMatch) {
-        const parentName = parenMatch[1].trim();
-        const childrenText = parenMatch[2];
-        // Only treat as children if there is a comma inside the parentheses
-        if (childrenText.includes(',')) {
-          name = parentName;
-          children = this.parseIngredients(childrenText);
-        } else {
-          // Keep the full name with parentheses if only one child (no comma)
-          name = name;
-          children = undefined;
-        }
-      }
-
-      return {
+    // replace all open brack and parenthesis with commas
+    ingredientsText = ingredientsText.replace(/[\(\[]/g, ',').replace(/[\)\]]/g, ',');
+    // Split on commas, ignore any grouping/children logic
+    const ingredients = ingredientsText
+      .split(',')
+      .map(part => part.trim().replace(/[\u00A0;:.]/g, ' ').replace(/ +/g, ' '))
+      .filter(name => !!name)
+      .map(name => ({
         name,
-        sweeter: this.findSweetener(name),
-        ...(children ? { children } : {})
-      };
-    });
+        sweeter: this.findSweetener(name)
+      }));
+    const uniqueIngredients: { [key: string]: Ingredient } = {};
+    for (const ingredient of ingredients) {
+      const trimmedName = ingredient.name.trim();
+      if (trimmedName && !uniqueIngredients[trimmedName]) {
+        uniqueIngredients[trimmedName] = ingredient;
+      }
+    }
+    return Object.values(uniqueIngredients);
   }
 
   private findSweetener(ingredient: string): Sweetener | null {

@@ -4,7 +4,10 @@
   </h1>
   <p style="text-align: center;">Easily locate non-nutritive sweeteners in a product by scanning the barcode</p>
 </div>
-<div style="text-align:center; margin: 2rem 0;">
+<div *ngIf="loading">
+  <mat-progress-spinner style="margin: auto;" mode="indeterminate"></mat-progress-spinner>
+</div>
+<div *ngIf="!loading" style="text-align:center; margin: 2rem 0;">
   <ng-container *ngIf="scannerActive">
     <button (click)="toggleScanner()" class="scan-btn">
       Close Scanner
@@ -24,10 +27,13 @@
 </div>
 <div *ngIf="scannerActive" id="reader" width="600px"></div>
 <div *ngIf="!scannerActive && noItemFound" style="text-align: center; margin-top: 2rem;">
-  <p>No item found. Please try scanning again.</p>
+  <p>Item not found in database. Please try scanning again or pick a different item.</p>
 </div>
 <div *ngIf="!scannerActive && food" class="food-card">
-  <h2 class="food-title">{{ food.description }}</h2>
+  <div class="food-title">{{ food.description }}</div>
+  <div *ngIf="food.sweeteners?.length === 0">
+    <p class="no-sweeteners">No non-nutritive sweeteners found for this item</p>
+  </div>
   <div *ngIf="food.sweeteners?.length > 0" class="sweetener-highlight">
     <span *ngFor="let s of food.sweeteners"
       [ngClass]="{
@@ -44,7 +50,7 @@
     <p class="no-ingredients">No ingredients found for this item</p>
   </div>
 
-  <!-- Ingredient List with Sweetener Badge and Children -->
+  <!-- Ingredient List with Sweetener Badge -->
   <ul class="ingredient-list">
     <ng-container *ngFor="let ingredient of food.ingredients | orderBySweetener">
       <li class="ingredient-top"
@@ -64,35 +70,12 @@
         <span *ngIf="ingredient.sweeter" class="sweet-badge">
           {{ ingredient.sweeter.name | titlecase }}
         </span>
-        <!-- Children -->
-        <ul class="ingredient-list child-list" *ngIf="ingredient.children?.length">
-          <ng-container *ngFor="let child of ingredient.children">
-            <li
-              [ngClass]="{
-                'sweetener': child.sweeter,
-                'sweetener-green': child.sweeter?.rating === 'safe',
-                'sweetener-yellow': child.sweeter?.rating === 'caution',
-                'sweetener-red': child.sweeter?.rating === 'avoid'
-              }">
-              <span class="ingredient-dot"
-                    [ngClass]="{
-                      'sweet-dot-green': child.sweeter?.rating === 'safe',
-                      'sweet-dot-yellow': child.sweeter?.rating === 'caution',
-                      'sweet-dot-red': child.sweeter?.rating === 'avoid'
-                    }"></span>
-              {{ child.name | titlecase }}
-              <span *ngIf="child.sweeter" class="sweet-badge">
-                {{ child.sweeter.name | titlecase }}
-              </span>
-            </li>
-          </ng-container>
-        </ul>
       </li>
     </ng-container>
   </ul>
 </div>
 
-<div *ngIf="!food" class="sweetener-table-container">
+<div *ngIf="!food && !scannerActive" class="sweetener-table-container">
   <h2>Sweetener Info</h2>
   <table mat-table [dataSource]="sweetenerDict" class="mat-elevation-z2 sweetener-table" style="width:100%;">
 
