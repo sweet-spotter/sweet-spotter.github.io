@@ -26,8 +26,11 @@
   </ng-container>
 </div>
 <div *ngIf="scannerActive" id="reader" width="600px"></div>
-<div *ngIf="!scannerActive && noItemFound" style="text-align: center; margin-top: 2rem;">
-  <p>Item not found in database. Please try scanning again or pick a different item.</p>
+<div *ngIf="!scannerActive && noItemFound" class="text-padding" style="text-align: center; margin-top: 2rem;">
+  <p>
+    Barcode {{barcode}} not found. Please try scanning again or pick a different item.
+    <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>
+  </p>
 </div>
 <div *ngIf="!scannerActive && food" class="food-card">
   <button
@@ -37,10 +40,10 @@
     &times;
   </button>
   <div class="food-title">{{ food.description | titlecase }}</div>
-  <div *ngIf="food.sweeteners?.length === 0">
+  <div *ngIf="food.ingredients && food.ingredients.length > 0 && food.sweeteners?.length === 0" class="text-padding">
     <p class="no-sweeteners">No non-nutritive sweeteners found for this item</p>
   </div>
-  <div *ngIf="food.sweeteners?.length > 0" class="sweetener-highlight">
+  <div *ngIf="food?.sweeteners && food.sweeteners.length > 0" class="sweetener-highlight">
     <span *ngFor="let s of food.sweeteners"
       [ngClass]="{
         'sweetener-chip': true,
@@ -52,8 +55,11 @@
     </span>
   </div>
 
-  <div *ngIf="!food.ingredients || food.ingredients.length === 0">
-    <p class="no-ingredients">No ingredients found for this item</p>
+  <div *ngIf="!food.ingredients || food.ingredients.length === 0" class="text-padding">
+    <p class="no-ingredients">
+      No ingredients found for this item.
+      <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>
+    </p>
   </div>
 
   <!-- Ingredient List with Sweetener Badge -->
@@ -93,7 +99,7 @@
     <ng-container matColumnDef="name">
       <th mat-header-cell *matHeaderCellDef>Name</th>
       <td mat-cell *matCellDef="let sweetener">
-        <a *ngIf="sweetener.source" [href]="sweetener.source" target="_blank" rel="noopener noreferrer">
+        <a *ngIf="sweetener.source" [href]="sweetener.source" target="_blank" rel="noopener">
           {{ sweetener.name }}
         </a>
         <span *ngIf="!sweetener.source">{{ sweetener.name }}</span>
@@ -131,5 +137,9 @@
         }"></tr>
   </table>
 </div>
+
+<ng-template #wantToHelpTemplate>
+  Want to help? Add data for this product to <a href="https://world.openfoodfacts.org/contribute" target="_blank" rel="noopener">Open Food Facts</a>.
+</ng-template>
 
 <router-outlet />

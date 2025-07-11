@@ -1,7 +1,7 @@
-import { Component, ErrorHandler, inject, OnInit } from '@angular/core';
+import { Component, inject, OnInit } from '@angular/core';
 import { Router, RouterOutlet } from '@angular/router';
 import { CameraDevice, Html5Qrcode } from "html5-qrcode";
-import { HttpClient, HttpClientModule } from '@angular/common/http';
+import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Pipe, PipeTransform } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -10,7 +10,6 @@ import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ApplicationInsights } from '@microsoft/applicationinsights-web';
 import { AngularPlugin } from '@microsoft/applicationinsights-angularplugin-js';
-import { ApplicationinsightsAngularpluginErrorService } from '@microsoft/applicationinsights-angularplugin-js';
 
 @Pipe({ name: 'orderBySweetener' })
 export class OrderBySweetenerPipe implements PipeTransform {
@@ -28,7 +27,7 @@ export class OrderBySweetenerPipe implements PipeTransform {
   }
 }
 
-interface FoodSearchResponse {
+interface USDASearchResponse {
   totalHits: number;
   currentPage: number;
   totalPages: number;
@@ -47,23 +46,26 @@ interface Sweetener {
   source?: string;
 }
 
+interface Food {
+  description: string;
+  ingredients: Ingredient[];
+  sweeteners: Sweetener[];
+}
+
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, HttpClientModule, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule, MatProgressSpinnerModule],
-  providers: [{
-      provide: ErrorHandler,
-      useClass: ApplicationinsightsAngularpluginErrorService
-    }],
+  imports: [RouterOutlet, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule, MatProgressSpinnerModule],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
-  food: any = null;
+  food: Food | null = null;
   scannerActive = false;
   cameras: CameraDevice[] = [];
   selectedCameraId: string | null = null;
   noItemFound = false;
   loading = false;
+  barcode: string | null = null;
   sweetenerDict: Sweetener[] = [
   {
     name: 'Allulose',
@@ -162,6 +164,7 @@ export class App implements OnInit {
   private startScanner(): void {
     this.food = null;
     this.noItemFound = false;
+    this.barcode = null;
     Html5Qrcode.getCameras().then(devices => {
       this.cameras = devices;
       if (devices.length === 0) {
@@ -231,6 +234,7 @@ export class App implements OnInit {
           return; // Ignore short codes
         }
         console.log(`Code matched = ${decodedText}`, decodedResult);
+        this.barcode = decodedText;
         if (this.html5QrCode) {
           this.html5QrCode.stop();
         }
@@ -256,7 +260,7 @@ export class App implements OnInit {
     this.loading = true;
     this.noItemFound = false;
     const usdaApiUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&pageSize=10&api_key=tyk58FSKxVyNkZEpBUaEKtGRIXhDOBwTyVekPw4W`;
-    this.http.get<FoodSearchResponse>(usdaApiUrl).subscribe(
+    this.http.get<USDASearchResponse>(usdaApiUrl).subscribe(
       response => {
         console.log('USDA API response:', response);
         if (response.totalHits > 0 && response.foods[0]?.ingredients) {
@@ -297,6 +301,9 @@ export class App implements OnInit {
 
   private setFoodFromUsda(foodData: any): void {
     this.food = foodData;
+    if (!this.food) {
+      return;
+    }
     this.food.ingredients = this.parseIngredients(foodData.ingredients);
     this.food.sweeteners = this.getSweetenersFromIngredients(this.food.ingredients);
   }
@@ -304,7 +311,8 @@ export class App implements OnInit {
   private setFoodFromOpenFoodFacts(product: any): void {
     this.food = {
       description: product.product_name,
-      ingredients: []
+      ingredients: [],
+      sweeteners: []
     };
     const ingredientsText = product.ingredients_text_debug || product.ingredients_text;
     if (ingredientsText) {
