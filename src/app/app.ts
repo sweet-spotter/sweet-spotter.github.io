@@ -1,5 +1,5 @@
-import { Component, inject, OnInit } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { Component, ErrorHandler, inject, OnInit } from '@angular/core';
+import { Router, RouterOutlet } from '@angular/router';
 import { CameraDevice, Html5Qrcode } from "html5-qrcode";
 import { HttpClient, HttpClientModule } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
@@ -8,6 +8,9 @@ import { FormsModule } from '@angular/forms';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { ApplicationInsights } from '@microsoft/applicationinsights-web';
+import { AngularPlugin } from '@microsoft/applicationinsights-angularplugin-js';
+import { ApplicationinsightsAngularpluginErrorService } from '@microsoft/applicationinsights-angularplugin-js';
 
 @Pipe({ name: 'orderBySweetener' })
 export class OrderBySweetenerPipe implements PipeTransform {
@@ -16,8 +19,8 @@ export class OrderBySweetenerPipe implements PipeTransform {
     return ingredients
       .slice()
       .sort((a, b) => {
-        const aHasSweetener = !!a.sweeter;
-        const bHasSweetener = !!b.sweeter;
+        const aHasSweetener = !!a.sweetener;
+        const bHasSweetener = !!b.sweetener;
         if (aHasSweetener && !bHasSweetener) return -1;
         if (!aHasSweetener && bHasSweetener) return 1;
         return 0;
@@ -34,18 +37,23 @@ interface FoodSearchResponse {
 
 interface Ingredient {
   name: string;
-  sweeter: Sweetener | null;
+  sweetener: Sweetener | null;
 }
 
 interface Sweetener {
   name: string;
   aliases: string[];
-  rating: 'safe' | 'caution' | 'avoid';
+  rating: 'Safe' | 'Caution' | 'Avoid';
+  source?: string;
 }
 
 @Component({
   selector: 'app-root',
   imports: [RouterOutlet, HttpClientModule, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule, MatProgressSpinnerModule],
+  providers: [{
+      provide: ErrorHandler,
+      useClass: ApplicationinsightsAngularpluginErrorService
+    }],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -60,53 +68,77 @@ export class App implements OnInit {
   {
     name: 'Allulose',
     aliases: ['allulose', 'd-psicose'],
-    rating: 'safe'
+    rating: 'Safe',
+    source: 'https://www.cspi.org/article/allulose'
   }, {
     name: 'Monk Fruit',
     aliases: ['monk fruit', 'luo han guo', 'siraitia grosvenorii', 'swingle fruit', 'lo han kuo'],
-    rating: 'safe'
+    rating: 'Caution',
+    source: 'https://www.cspi.org/article/monk-fruit-extract'
   }, {
     name: 'Stevia',
     aliases: ['stevia', 'steviol', 'rebiana', 'rebaudioside', 'stevioside', 'reb a', 'reb m'],
-    rating: 'safe'
+    rating: 'Safe',
+    source: 'https://www.cspi.org/article/stevia-leaf-extract-rebiana'
   }, {
     name: 'Aspartame',
     aliases: ['aspartame'],
-    rating: 'avoid'
+    rating: 'Avoid',
+    source: 'https://www.cspi.org/article/aspartame'
   }, {
+    name: 'Advantame',
+    aliases: ['advantame'],
+    rating: 'Safe',
+    source: 'https://www.cspi.org/article/advantame'
+  }, {    
     name: 'Sucralose',
     aliases: ['sucralose', 'splenda'],
-    rating: 'avoid'
+    rating: 'Avoid',
+    source: 'https://www.cspi.org/article/sucralose'
   }, {
     name: 'Saccharin',
     aliases: ['saccharin'],
-    rating: 'avoid'
+    rating: 'Avoid',
+    source: 'https://www.cspi.org/article/saccharin'
   }, {
     name: 'Acesulfame Potassium',
     aliases: ['acesulfame potassium', 'ace-k'],
-    rating: 'caution'
+    rating: 'Avoid',
+    source: 'https://www.cspi.org/article/acesulfame-potassium'
   }, {
     name: 'Neotame',
     aliases: ['neotame'],
-    rating: 'avoid'
+    rating: 'Safe',
+    source: 'https://www.cspi.org/article/neotame'
   }, {
     name: 'Sugar Alcohol',
-    aliases: ['erythritol', 'xylitol', 'sorbitol', 'maltitol', 'isomalt', 'mannitol', 'xylitol'],
-    rating: 'safe'
+    aliases: ['erythritol', 'xylitol', 'sorbitol', 'maltitol', 'isomalt', 'mannitol', 'xylitol', 'lactitol', 'polyglycitol', 'hydrogenated starch hydrolysates'],
+    rating: 'Safe',
+    source: 'https://www.cspi.org/article/erythritol'
+  }, {
+    name: 'Thaumatin',
+    aliases: ['thaumatin', 'talin'],
+    rating: 'Safe',
+    source: 'https://www.cspi.org/article/thaumatin'
   }];
   private html5QrCode: Html5Qrcode | null = null;
   private _snackBar = inject(MatSnackBar);
+  private appInsights: ApplicationInsights;
 
-  constructor(private http: HttpClient) {
-    //sort sweetenerDict by name
+  constructor(
+    private http: HttpClient,
+    private router: Router
+  ) {
+    var angularPlugin = new AngularPlugin();
+    this.appInsights = new ApplicationInsights({ config: {
+    instrumentationKey: '94ed7832-0ccb-4625-beb8-2feb1d218e08',
+    extensions: [angularPlugin],
+    extensionConfig: {
+        [angularPlugin.identifier]: { router: this.router }
+    }
+    } });
+    this.appInsights.loadAppInsights();
     this.sweetenerDict = this.sweetenerDict.sort((a, b) => a.name.localeCompare(b.name));
-    navigator.permissions.query({name: 'camera'})
-    .then((permissionObj) => {
-      console.log('Camera permission ' + permissionObj.state);
-    })
-    .catch((error) => {
-      console.log('Got camera permission error :', error);
-    })
   }
 
   ngOnInit(): void {}
@@ -154,6 +186,11 @@ export class App implements OnInit {
       }
       console.log("Available cameras:", devices);
       setTimeout(() => this.initScanner(), 0); // ensure DOM is updated
+    }).catch(err => {
+      this.appInsights.trackException({ exception: new Error(`Error getting cameras: ${err}`) });
+      console.error("Error getting cameras:", err);
+      this.showError("Unable to access camera. Please check permissions.");
+      this.scannerActive = false;
     });
   }
 
@@ -162,6 +199,7 @@ export class App implements OnInit {
       this.html5QrCode.stop().then(() => {
         console.log("Scanner stopped.");
       }).catch(err => {
+        this.appInsights.trackException({ exception: new Error(`Error stopping scanner: ${err}`) });
         console.error("Error stopping scanner:", err);
       });
     }
@@ -186,6 +224,8 @@ export class App implements OnInit {
         qrbox: { width: 250, height: 250 }
       },
       (decodedText, decodedResult) => {
+        console.log(`Decoded text: ${decodedText}`, decodedResult);
+        this.appInsights.trackEvent({ name: "QRCodeScanned", properties: { code: decodedText } });
         if (decodedText.length != 8 && decodedText.length != 13 && decodedText.length != 12) {
           console.warn(`Invalid code detected: ${decodedText}`);
           return; // Ignore short codes
@@ -205,6 +245,7 @@ export class App implements OnInit {
       (errorMessage) => {
       }
     ).catch((err) => {
+      this.appInsights.trackException({ exception: new Error(`Scanner initialization error: ${err}`) });
       this.showError("Unable to start scanner. Please check camera permissions.");
       console.error(`Unable to start scanning, error: ${err}`);
       this.scannerActive = false;
@@ -282,7 +323,7 @@ export class App implements OnInit {
       .filter(name => !!name)
       .map(name => ({
         name,
-        sweeter: this.findSweetener(name)
+        sweetener: this.findSweetener(name)
       }));
     const uniqueIngredients: { [key: string]: Ingredient } = {};
     for (const ingredient of ingredients) {
@@ -305,10 +346,10 @@ export class App implements OnInit {
   }
 
   private getSweetenersFromIngredients(ingredients: Ingredient[]): Sweetener[] {
-    return this.food.ingredients
-      .map((ingredient: any) => ingredient.sweeter)
-      .filter((sweeter: Sweetener | null, index: number, arr: (Sweetener | null)[]) =>
-        sweeter !== null && arr.findIndex(s => s && sweeter && s.name === sweeter.name) === index
+    return ingredients
+      .map((ingredient: any) => ingredient.sweetener)
+      .filter((sweetener: Sweetener | null, index: number, arr: (Sweetener | null)[]) =>
+        sweetener !== null && arr.findIndex(s => s && sweetener && s.name === sweetener.name) === index
       );
   }
 

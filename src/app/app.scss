@@ -8,6 +8,18 @@
     box-shadow: 0 4px 24px rgba(0,0,0,0.30);
     padding: 2rem 2.5rem 1.5rem 2.5rem;
     text-align: center;
+    position: relative;
+}
+
+.food-card-close {
+    position: absolute;
+    top: 0.1em;
+    right: 0.1em;
+    background: none;
+    border: none;
+    font-size: 2.5em;
+    color: #888;
+    cursor: pointer;
 }
 
 .food-title {
@@ -31,6 +43,9 @@
     box-shadow: 0 1px 4px rgba(0,0,0,0.10);
     transition: background 0.2s;
     color: #f3f3fa;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
 }
 
 .ingredient-list li:not(.ingredient-top) {
@@ -59,13 +74,16 @@
   color: #ff8fcf !important;
   border-color: #ff5ca7 !important;
 }
-.sweet-dot-green {
+
+.sweetener-green .ingredient-dot {
   background: #00e676 !important;
 }
-.sweet-dot-yellow {
+
+.sweetener-yellow .ingredient-dot {
   background: #ffe600 !important;
 }
-.sweet-dot-red {
+
+.sweetener-red .ingredient-dot {
   background: #ff5ca7 !important;
 }
 
@@ -137,7 +155,6 @@
 
 .sweet-badge {
     display: inline-block;
-    margin-left: 0.7em;
     background: #ff5ca7;
     color: #fff;
     font-size: 0.85em;
@@ -151,6 +168,7 @@
 .sweetener-table-container {
     padding-left: 20px;
     padding-right: 20px;
+    padding-bottom: 20px;
     .table-sweetener-green {
         color: #207a2b;
         font-weight: bold;
