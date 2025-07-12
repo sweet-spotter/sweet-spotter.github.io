@@ -1,0 +1,22 @@
+<div class="scanner-container">
+  <ng-container *ngIf="scannerActive">
+    <button (click)="toggleScanner()" class="scan-btn">
+      Close Scanner
+    </button>
+    <mat-form-field *ngIf="cameras && cameras.length > 1" subscriptSizing="dynamic" class="camera-select">
+      <mat-label>Camera</mat-label>
+      <mat-select [(value)]="selectedCameraId">
+        <mat-option></mat-option>
+        @for (camera of cameras; track camera) {
+          <mat-option [value]="camera.id">{{ camera.label }}</mat-option>
+        }
+      </mat-select>
+    </mat-form-field>
+  </ng-container>
+  <ng-container *ngIf="!scannerActive">
+    <button (click)="toggleScanner()" class="scan-btn">
+      Scan Barcode
+    </button>
+  </ng-container>
+</div>
+<div *ngIf="scannerActive" id="reader"></div>

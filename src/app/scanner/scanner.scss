@@ -1,0 +1,31 @@
+.scanner-container {
+    text-align:center;
+    margin: 1rem 0;
+}
+
+.scan-btn {
+    background: #ff5ca7;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 0.8rem 2rem;
+    font-size: 1.1rem;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    transition: background 0.2s;
+}
+
+.scan-btn:hover {
+    background: #e14b8f;
+}
+
+.camera-select {
+    margin-top: 1rem;
+}
+
+#reader {
+    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+}

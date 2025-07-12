@@ -2,30 +2,12 @@
   <h1 class="app-main-title">
     Sweet Spotter
   </h1>
-  <p style="text-align: center;">Easily locate non-nutritive sweeteners in a product by scanning the barcode</p>
+  <p class="text-padding" style="text-align: center;">Easily locate non-nutritive sweeteners in a product by scanning the barcode</p>
 </div>
 <div *ngIf="loading">
   <mat-progress-spinner style="margin: auto;" mode="indeterminate"></mat-progress-spinner>
 </div>
-<div *ngIf="!loading" style="text-align:center; margin: 2rem 0;">
-  <ng-container *ngIf="scannerActive">
-    <button (click)="toggleScanner()" class="scan-btn">
-      Close Scanner
-    </button>
-    <div style="margin: 1rem 0;" *ngIf="cameras && cameras.length > 1">
-      <label for="cameraSelect" style="color:#fff; margin-right:0.5em;">Camera:</label>
-      <select id="cameraSelect" [(ngModel)]="selectedCameraId" (change)="onCameraChange($event)" style="padding:0.4em 1em; border-radius:6px;">
-        <option *ngFor="let cam of cameras" [value]="cam.id">{{ cam.label || 'Camera ' + cam.id }}</option>
-      </select>
-    </div>
-  </ng-container>
-  <ng-container *ngIf="!scannerActive">
-    <button (click)="toggleScanner()" class="scan-btn">
-      Scan Barcode
-    </button>
-  </ng-container>
-</div>
-<div *ngIf="scannerActive" id="reader" width="600px"></div>
+<app-scanner *ngIf="!loading" [(scannerActive)]="scannerActive" (foodScanned)="lookupFood($event)"></app-scanner>
 <div *ngIf="!scannerActive && noItemFound" class="text-padding" style="text-align: center; margin-top: 2rem;">
   <p>
     Barcode {{barcode}} not found. Please try scanning again or pick a different item.
@@ -92,7 +74,7 @@
 </div>
 
 <div *ngIf="!food && !scannerActive" class="sweetener-table-container">
-  <h2>Sweetener Info</h2>
+  <h2>Sweetener Data</h2>
   <table mat-table [dataSource]="sweetenerDict" class="mat-elevation-z2 sweetener-table" style="width:100%;">
 
     <!-- Name Column -->

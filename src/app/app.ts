@@ -1,15 +1,12 @@
-import { Component, inject, OnInit } from '@angular/core';
-import { Router, RouterOutlet } from '@angular/router';
-import { CameraDevice, Html5Qrcode } from "html5-qrcode";
+import { Component, OnInit } from '@angular/core';
+import { RouterOutlet } from '@angular/router';
 import { HttpClient } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 import { Pipe, PipeTransform } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { ApplicationInsights } from '@microsoft/applicationinsights-web';
-import { AngularPlugin } from '@microsoft/applicationinsights-angularplugin-js';
+import { ScannerComponent } from './scanner/scanner';
 
 @Pipe({ name: 'orderBySweetener' })
 export class OrderBySweetenerPipe implements PipeTransform {
@@ -54,22 +51,20 @@ interface Food {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule, MatProgressSpinnerModule],
+  imports: [RouterOutlet, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule, MatProgressSpinnerModule, ScannerComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
 export class App implements OnInit {
   food: Food | null = null;
   scannerActive = false;
-  cameras: CameraDevice[] = [];
-  selectedCameraId: string | null = null;
   noItemFound = false;
   loading = false;
   barcode: string | null = null;
   sweetenerDict: Sweetener[] = [
   {
     name: 'Allulose',
-    aliases: ['allulose', 'd-psicose'],
+    aliases: ['allulose', 'd-psicose', 'pseudo-fructose', 'd-allulose'],
     rating: 'Safe',
     source: 'https://www.cspi.org/article/allulose'
   }, {
@@ -80,7 +75,7 @@ export class App implements OnInit {
   }, {
     name: 'Stevia',
     aliases: ['stevia', 'steviol', 'rebiana', 'rebaudioside', 'stevioside', 'reb a', 'reb m'],
-    rating: 'Safe',
+    rating: 'Safe', 
     source: 'https://www.cspi.org/article/stevia-leaf-extract-rebiana'
   }, {
     name: 'Aspartame',
@@ -123,140 +118,16 @@ export class App implements OnInit {
     rating: 'Safe',
     source: 'https://www.cspi.org/article/thaumatin'
   }];
-  private html5QrCode: Html5Qrcode | null = null;
-  private _snackBar = inject(MatSnackBar);
-  private appInsights: ApplicationInsights;
 
   constructor(
-    private http: HttpClient,
-    private router: Router
+    private http: HttpClient
   ) {
-    var angularPlugin = new AngularPlugin();
-    this.appInsights = new ApplicationInsights({ config: {
-    instrumentationKey: '94ed7832-0ccb-4625-beb8-2feb1d218e08',
-    extensions: [angularPlugin],
-    extensionConfig: {
-        [angularPlugin.identifier]: { router: this.router }
-    }
-    } });
-    this.appInsights.loadAppInsights();
     this.sweetenerDict = this.sweetenerDict.sort((a, b) => a.name.localeCompare(b.name));
   }
 
   ngOnInit(): void {}
 
-  toggleScanner() {
-    this.scannerActive = !this.scannerActive;
-    if (this.scannerActive) {
-      this.startScanner();
-    } else {
-      this.closeScanner();
-    }
-  }
-
-  onCameraChange(event: Event): void {
-    if (this.scannerActive) {
-      this.closeScanner();
-      setTimeout(() => this.initScanner(), 0);
-    }
-  }
-
-  private startScanner(): void {
-    this.food = null;
-    this.noItemFound = false;
-    this.barcode = null;
-    Html5Qrcode.getCameras().then(devices => {
-      this.cameras = devices;
-      if (devices.length === 0) {
-        console.error("No cameras found.");
-        this.scannerActive = false;
-        return;
-      }
-      const cameraPriorityOrder = ["back ultra wide", "back", "rear", "primary"];
-      // Find the first camera that matches our priority order
-      let priorityCamera: CameraDevice | undefined = undefined;
-      for (const priority of cameraPriorityOrder) {
-        const camera = devices.find(d => d.label.toLowerCase().includes(priority));
-        if (camera) {
-          priorityCamera = camera;
-          break;
-        }
-      }
-      if (priorityCamera) {
-        this.selectedCameraId = priorityCamera.id;
-      } else {
-        this.selectedCameraId = devices[0].id; // Fallback to first camera
-      }
-      console.log("Available cameras:", devices);
-      setTimeout(() => this.initScanner(), 0); // ensure DOM is updated
-    }).catch(err => {
-      this.appInsights.trackException({ exception: new Error(`Error getting cameras: ${err}`) });
-      console.error("Error getting cameras:", err);
-      this.showError("Unable to access camera. Please check permissions.");
-      this.scannerActive = false;
-    });
-  }
-
-  private closeScanner(): void {
-    if (this.html5QrCode) {
-      this.html5QrCode.stop().then(() => {
-        console.log("Scanner stopped.");
-      }).catch(err => {
-        this.appInsights.trackException({ exception: new Error(`Error stopping scanner: ${err}`) });
-        console.error("Error stopping scanner:", err);
-      });
-    }
-  }
-
-  private initScanner(): void {
-    const readerDiv = document.getElementById("reader");
-    if (!readerDiv) {
-      setTimeout(() => this.initScanner(), 100); // Try again shortly
-      return;
-    }
-    if (this.selectedCameraId === null) {
-      this.showError("No camera selected. Please use a device with a camera.");
-      console.error("No camera selected.");
-      this.scannerActive = false;
-      return;
-    }
-    this.html5QrCode = new Html5Qrcode("reader");
-    this.html5QrCode.start(
-      this.selectedCameraId,
-      { fps: 10,
-        qrbox: { width: 250, height: 250 }
-      },
-      (decodedText, decodedResult) => {
-        console.log(`Decoded text: ${decodedText}`, decodedResult);
-        this.appInsights.trackEvent({ name: "QRCodeScanned", properties: { code: decodedText } });
-        if (decodedText.length != 8 && decodedText.length != 13 && decodedText.length != 12) {
-          console.warn(`Invalid code detected: ${decodedText}`);
-          return; // Ignore short codes
-        }
-        console.log(`Code matched = ${decodedText}`, decodedResult);
-        this.barcode = decodedText;
-        if (this.html5QrCode) {
-          this.html5QrCode.stop();
-        }
-        this.scannerActive = false;
-        let barcode = decodedText;
-        // If the barcode starts with '0' and it's 13 characters long, remove it
-        if (decodedText.startsWith('0') && decodedText.length === 13) {
-          barcode = decodedText.substring(1);
-        }
-        this.lookupFood(barcode);
-      },
-      (errorMessage) => {
-      }
-    ).catch((err) => {
-      this.appInsights.trackException({ exception: new Error(`Scanner initialization error: ${err}`) });
-      this.showError("Unable to start scanner. Please check camera permissions.");
-      console.error(`Unable to start scanning, error: ${err}`);
-      this.scannerActive = false;
-    });
-  }
-
-  private lookupFood(barcode: string): void {
+  lookupFood(barcode: string): void {
     this.loading = true;
     this.noItemFound = false;
     const usdaApiUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&pageSize=10&api_key=tyk58FSKxVyNkZEpBUaEKtGRIXhDOBwTyVekPw4W`;
@@ -359,10 +230,6 @@ export class App implements OnInit {
       .filter((sweetener: Sweetener | null, index: number, arr: (Sweetener | null)[]) =>
         sweetener !== null && arr.findIndex(s => s && sweetener && s.name === sweetener.name) === index
       );
-  }
-
-  private showError(message: string) {
-    this._snackBar.open(message, 'Close');
   }
 
 }
