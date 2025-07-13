@@ -8,12 +8,6 @@
   <mat-progress-spinner style="margin: auto;" mode="indeterminate"></mat-progress-spinner>
 </div>
 <app-scanner *ngIf="!loading" [(scannerActive)]="scannerActive" (foodScanned)="lookupFood($event)"></app-scanner>
-<div *ngIf="!scannerActive && noItemFound" class="text-padding" style="text-align: center; margin-top: 2rem;">
-  <p>
-    Barcode {{barcode}} not found. Please try scanning again or pick a different item.
-    <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>
-  </p>
-</div>
 <div *ngIf="!scannerActive && food" class="food-card">
   <button
     (click)="food = null"
@@ -37,7 +31,14 @@
     </span>
   </div>
 
-  <div *ngIf="!food.ingredients || food.ingredients.length === 0" class="text-padding">
+  <div *ngIf="foodNotFound" class="text-padding">
+    <p>
+      Barcode {{barcode}} not found. Please try scanning again or pick a different item.
+      <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>
+    </p>
+  </div>
+
+  <div *ngIf="!foodNotFound && (!food.ingredients || food.ingredients.length === 0)" class="text-padding">
     <p class="no-ingredients">
       No ingredients found for this item.
       <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>

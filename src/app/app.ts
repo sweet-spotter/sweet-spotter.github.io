@@ -28,7 +28,20 @@ interface USDASearchResponse {
   totalHits: number;
   currentPage: number;
   totalPages: number;
-  foods: any[];
+  foods: [{
+    description: string;
+    ingredients: string;
+  }];
+}
+
+interface OpenFoodFactsResponse {
+  product: {
+    product_name: string;
+    ingredients_text: string;
+    ingredients: [{
+      text: string;
+    }];
+  };
 }
 
 interface Ingredient {
@@ -58,7 +71,6 @@ interface Food {
 export class App implements OnInit {
   food: Food | null = null;
   scannerActive = false;
-  noItemFound = false;
   loading = false;
   barcode: string | null = null;
   sweetenerDict: Sweetener[] = [
@@ -119,6 +131,11 @@ export class App implements OnInit {
     source: 'https://www.cspi.org/article/thaumatin'
   }];
 
+  get foodNotFound(): boolean {
+    if (!this.food) return false;
+    return this.food.description === 'Not found';
+  } 
+
   constructor(
     private http: HttpClient
   ) {
@@ -128,14 +145,14 @@ export class App implements OnInit {
   ngOnInit(): void {}
 
   lookupFood(barcode: string): void {
+    this.barcode = barcode;
     this.loading = true;
-    this.noItemFound = false;
-    const usdaApiUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&pageSize=10&api_key=tyk58FSKxVyNkZEpBUaEKtGRIXhDOBwTyVekPw4W`;
+    const usdaApiUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&pageSize=1&api_key=tyk58FSKxVyNkZEpBUaEKtGRIXhDOBwTyVekPw4W`;
     this.http.get<USDASearchResponse>(usdaApiUrl).subscribe(
       response => {
         console.log('USDA API response:', response);
         if (response.totalHits > 0 && response.foods[0]?.ingredients) {
-          this.setFoodFromUsda(response.foods[0]);
+          this.setFoodFromUsda(response);
           this.loading = false;
         } else {
           this.lookupOpenFoodFacts(barcode);
@@ -150,44 +167,57 @@ export class App implements OnInit {
 
   private lookupOpenFoodFacts(barcode: string): void {
     const offApiUrl = `https://world.openfoodfacts.net/api/v2/product/${encodeURIComponent(barcode)}`;
-    this.http.get<any>(offApiUrl).subscribe(
+    this.http.get<OpenFoodFactsResponse>(offApiUrl).subscribe(
       offResponse => {
         console.log('Open Food Facts API response:', offResponse);
         if (offResponse && offResponse.product) {
-          this.setFoodFromOpenFoodFacts(offResponse.product);
+          this.setFoodFromOpenFoodFacts(offResponse);
         } else {
-          this.food = null;
-          this.noItemFound = true;
+          this.setFoodNotFound();
         }
         this.loading = false;
       },
       offError => {
         console.error('Open Food Facts API error:', offError);
-        this.food = null;
-        this.noItemFound = true;
+        this.setFoodNotFound();
         this.loading = false;
       }
     );
   }
 
-  private setFoodFromUsda(foodData: any): void {
-    this.food = foodData;
-    if (!this.food) {
-      return;
-    }
+  private setFoodNotFound() {
+    this.food = {
+      description: `Not found`,
+      ingredients: [],
+      sweeteners: []
+    };
+  }
+
+  private setFoodFromUsda(response: USDASearchResponse): void {
+    const foodData = response.foods[0];
+    this.food = {
+      description: foodData.description,
+      ingredients: [],
+      sweeteners: []
+    };
     this.food.ingredients = this.parseIngredients(foodData.ingredients);
     this.food.sweeteners = this.getSweetenersFromIngredients(this.food.ingredients);
   }
 
-  private setFoodFromOpenFoodFacts(product: any): void {
+  private setFoodFromOpenFoodFacts(response: OpenFoodFactsResponse): void {
+    const product = response.product;
     this.food = {
       description: product.product_name,
       ingredients: [],
       sweeteners: []
     };
-    const ingredientsText = product.ingredients_text_debug || product.ingredients_text;
-    if (ingredientsText) {
-      this.food.ingredients = this.parseIngredients(ingredientsText);
+    if (product.ingredients && product.ingredients.length > 0) {
+      product.ingredients.forEach(ingredient => {
+        this.food?.ingredients.push({
+          name: ingredient.text,
+          sweetener: this.findSweetener(ingredient.text)
+        });
+      });
       this.food.sweeteners = this.getSweetenersFromIngredients(this.food.ingredients);
     }
   }
