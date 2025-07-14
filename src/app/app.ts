@@ -141,7 +141,7 @@ export class App implements OnInit {
     private http: HttpClient
   ) {
     this.sweeteners = this.sweeteners.sort((a, b) => a.name.localeCompare(b.name));
-    this.lookupFood('644209101139')
+    //this.lookupFood('644209101139')
   }
 
   ngOnInit(): void {}
