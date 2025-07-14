@@ -33,7 +33,7 @@
 
   <div *ngIf="foodNotFound" class="text-padding">
     <p>
-      Barcode {{barcode}} not found. Please try scanning again or pick a different item.
+      Barcode {{barcode}} not found. Try scanning again or pick a different item.
       <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>
     </p>
   </div>
@@ -74,52 +74,7 @@
   </ul>
 </div>
 
-<div *ngIf="!food && !scannerActive" class="sweetener-table-container">
-  <h2>Sweetener Data</h2>
-  <table mat-table [dataSource]="sweetenerDict" class="mat-elevation-z2 sweetener-table" style="width:100%;">
-
-    <!-- Name Column -->
-    <ng-container matColumnDef="name">
-      <th mat-header-cell *matHeaderCellDef>Name</th>
-      <td mat-cell *matCellDef="let sweetener">
-        <a *ngIf="sweetener.source" [href]="sweetener.source" target="_blank" rel="noopener">
-          {{ sweetener.name }}
-        </a>
-        <span *ngIf="!sweetener.source">{{ sweetener.name }}</span>
-      </td>
-    </ng-container>
-
-    <!-- Aliases Column -->
-    <ng-container matColumnDef="aliases">
-      <th mat-header-cell *matHeaderCellDef>Aliases</th>
-      <td mat-cell *matCellDef="let sweetener">{{ sweetener.aliases.join(', ') }}</td>
-    </ng-container>
-
-    <!-- Rating Column -->
-    <ng-container matColumnDef="rating">
-      <th mat-header-cell *matHeaderCellDef>Rating</th>
-      <td mat-cell *matCellDef="let sweetener">
-        <span class="sweet-badge"
-          [ngClass]="{
-            'sweetener-chip': true,
-            'sweetener-green': sweetener?.rating === 'Safe',
-            'sweetener-yellow': sweetener?.rating === 'Caution',
-            'sweetener-red': sweetener?.rating === 'Avoid'
-          }">
-            {{ sweetener.rating | titlecase }}
-        </span>
-      </td>
-    </ng-container>
-
-    <tr mat-header-row *matHeaderRowDef="['name', 'aliases', 'rating']"></tr>
-    <tr mat-row *matRowDef="let row; columns: ['name', 'aliases', 'rating'];"
-        [ngClass]="{
-          'safe': row.rating === 'Safe',
-          'caution': row.rating === 'Caution',
-          'avoid': row.rating === 'Avoid'
-        }"></tr>
-  </table>
-</div>
+<app-sweetener-table *ngIf="!food && !scannerActive" [sweeteners]="sweeteners"></app-sweetener-table>
 
 <ng-template #wantToHelpTemplate>
   Want to help? Add data for this product to <a href="https://world.openfoodfacts.org/contribute" target="_blank" rel="noopener">Open Food Facts</a>

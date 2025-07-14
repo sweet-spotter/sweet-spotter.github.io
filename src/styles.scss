@@ -11,3 +11,47 @@ body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
 a {
     color: #adccff;
 }
+
+.sweetener-chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4em 1em;
+    border-radius: 999px;
+    font-size: 1rem;
+    font-weight: 600;
+    background: #232336;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+    border: 2px solid transparent;
+}
+
+.sweet-badge {
+    display: inline-block;
+    background: #ff5ca7;
+    color: #fff;
+    font-size: 0.85em;
+    font-weight: 600;
+    padding: 0.18em 0.85em;
+    border-radius: 1em;
+    letter-spacing: 0.5px;
+    vertical-align: middle;
+    text-align: center;
+}
+
+.sweetener-green {
+  background: #1e3a2a !important;
+  color: #7fffbe !important;
+  border-color: #00e676 !important;
+}
+
+.sweetener-yellow {
+  background: #3a321a !important;
+  color: #ffe68f !important;
+  border-color: #ffe600 !important;
+}
+
+.sweetener-red {
+  background: #3a1a2f !important;
+  color: #ff8fcf !important;
+  border-color: #ff5ca7 !important;
+}

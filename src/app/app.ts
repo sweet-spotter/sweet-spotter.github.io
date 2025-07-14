@@ -7,6 +7,7 @@ import { FormsModule } from '@angular/forms';
 import { MatTableModule } from '@angular/material/table';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ScannerComponent } from './scanner/scanner';
+import { SweetenerTableComponent } from "./sweetener-table/sweetener-table";
 
 @Pipe({ name: 'orderBySweetener' })
 export class OrderBySweetenerPipe implements PipeTransform {
@@ -49,7 +50,7 @@ interface Ingredient {
   sweetener: Sweetener | null;
 }
 
-interface Sweetener {
+export interface Sweetener {
   name: string;
   aliases: string[];
   rating: 'Safe' | 'Caution' | 'Avoid';
@@ -64,7 +65,7 @@ interface Food {
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule, MatProgressSpinnerModule, ScannerComponent],
+  imports: [RouterOutlet, CommonModule, OrderBySweetenerPipe, FormsModule, MatTableModule, MatProgressSpinnerModule, ScannerComponent, SweetenerTableComponent],
   templateUrl: './app.html',
   styleUrl: './app.scss'
 })
@@ -73,7 +74,7 @@ export class App implements OnInit {
   scannerActive = false;
   loading = false;
   barcode: string | null = null;
-  sweetenerDict: Sweetener[] = [
+  sweeteners: Sweetener[] = [
   {
     name: 'Allulose',
     aliases: ['allulose', 'd-psicose', 'pseudo-fructose', 'd-allulose'],
@@ -139,7 +140,8 @@ export class App implements OnInit {
   constructor(
     private http: HttpClient
   ) {
-    this.sweetenerDict = this.sweetenerDict.sort((a, b) => a.name.localeCompare(b.name));
+    this.sweeteners = this.sweeteners.sort((a, b) => a.name.localeCompare(b.name));
+    this.lookupFood('644209101139')
   }
 
   ngOnInit(): void {}
@@ -224,11 +226,16 @@ export class App implements OnInit {
 
   private parseIngredients(ingredientsText: string): Ingredient[] {
     // replace all open brack and parenthesis with commas
-    ingredientsText = ingredientsText.replace(/[\(\[]/g, ',').replace(/[\)\]]/g, ',');
-    // Split on commas, ignore any grouping/children logic
+    //ingredientsText = ingredientsText.replace(/[\(\[]/g, ',').replace(/[\)\]]/g, ',');
+    // Split on commas, trim whitespace, and normalize spaces
+    // Don't split on commas inside parentheses or brackets
+    ingredientsText = ingredientsText.replace(/[\(\[].*?[\)\]]/g, match => {
+      // Replace commas inside parentheses or brackets with a placeholder
+      return match.replace(/,/g, '␣'); // Use a unique placeholder
+    });
     const ingredients = ingredientsText
       .split(',')
-      .map(part => part.trim().replace(/[\u00A0;:.]/g, ' ').replace(/ +/g, ' '))
+      .map(part => part.trim().replace(/[\u00A0;:.]/g, ' ').replace(/ +/g, ' ').replace(/␣/g, ','))
       .filter(name => !!name)
       .map(name => ({
         name,
@@ -246,7 +253,7 @@ export class App implements OnInit {
 
   private findSweetener(ingredient: string): Sweetener | null {
     const normalizedIngredient = ingredient.toLowerCase();
-    for (const sweetener of this.sweetenerDict) {
+    for (const sweetener of this.sweeteners) {
       if (sweetener.aliases.some(alias => normalizedIngredient.includes(alias))) {
         return sweetener;
       }
