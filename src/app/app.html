@@ -11,10 +11,12 @@
   </div>
   <div *ngIf="searchActive">
     <h2 style="text-align: center;">Search for a Product</h2>
-    <form (submit)="searchProducts(); $event.preventDefault()" style="display: flex; justify-content: center; gap: 0.5em; margin-bottom: 1.5em;">
+    <form (submit)="searchProducts(); $event.preventDefault()" style="margin-bottom: 1.5em; text-align: center;">
       <input type="text" [(ngModel)]="searchText" name="searchText" placeholder="Enter product name..." class="search-input" autofocus autocomplete="off" />
-      <button type="submit" class="search-btn" [disabled]="searchLoading || !searchText.trim()">Search</button>
-      <button type="button" class="cancel-btn" (click)="searchActive = false">Cancel</button>
+      <div style="display: flex; justify-content: center; gap: 0.5em; margin-top: 1em;">
+        <button type="submit" class="search-btn" [disabled]="searchLoading || !searchText.trim()">Search</button>
+        <button type="button" class="cancel-btn" (click)="cancelSearch()">Cancel</button>
+      </div>
     </form>
     <div *ngIf="searchLoading" style="text-align: center;">
       <mat-progress-spinner style="margin: auto;" mode="indeterminate"></mat-progress-spinner>

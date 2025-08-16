@@ -197,6 +197,15 @@ export class App implements OnInit {
       });
   }
 
+  cancelSearch() {
+    this.searchActive = false;
+    this.searchText = '';
+    this.searchResults = [];
+    this.food = null;
+    this.scannerActive = false;
+    this.loading = false;
+  }
+
   selectProduct(food: Food) {
     this.searchActive = false;
     this.scannerActive = false;
