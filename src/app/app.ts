@@ -30,19 +30,25 @@ interface USDASearchResponse {
   currentPage: number;
   totalPages: number;
   foods: [{
+    brandName?: string;
     description: string;
     ingredients: string;
   }];
 }
 
 interface OpenFoodFactsResponse {
-  product: {
-    product_name: string;
-    ingredients_text: string;
-    ingredients: [{
-      text: string;
-    }];
-  };
+  product: OpenFoodFactsResponseProduct;
+}
+
+interface OpenFoodFactsResponseProduct {
+  code: string;
+  product_name: string;
+  ingredients_text: string;
+  ingredients: [{
+    text: string;
+  }];
+  image_url: string;
+  brands?: string;
 }
 
 interface Ingredient {
@@ -58,9 +64,12 @@ export interface Sweetener {
 }
 
 interface Food {
+  barcode?: string;
   description: string;
   ingredients: Ingredient[];
   sweeteners: Sweetener[];
+  imageUrl?: string;
+  brand?: string;
 }
 
 @Component({
@@ -74,6 +83,11 @@ export class App implements OnInit {
   scannerActive = false;
   loading = false;
   barcode: string | null = null;
+  searchActive = false;
+  searchText = '';
+  searchLoading = false;
+  searchResults: Food[] = [];
+
   sweeteners: Sweetener[] = [
   {
     name: 'Allulose',
@@ -135,18 +149,61 @@ export class App implements OnInit {
   get foodNotFound(): boolean {
     if (!this.food) return false;
     return this.food.description === 'Not found';
-  } 
+  }
+
+  get foodBrand(): string | null {
+    if (!this.food || !this.food.brand) return null;
+    return `(${this.food.brand})`;
+  }
 
   constructor(
     private http: HttpClient
   ) {
     this.sweeteners = this.sweeteners.sort((a, b) => a.name.localeCompare(b.name));
-    //this.lookupFood('644209101139')
+    //this.lookupOpenFoodFacts('644209101139')
   }
 
   ngOnInit(): void {}
 
-  lookupFood(barcode: string): void {
+  startTextSearch() {
+    this.food = null;
+    this.searchActive = true;
+    this.searchText = '';
+    this.searchResults = [];
+    this.searchLoading = false;
+  }
+
+  searchProducts() {
+    if (!this.searchText.trim()) return;
+    this.searchLoading = true;
+    this.searchResults = [];
+    const url = `https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(this.searchText)}&search_simple=1&json=1&action=process&fields=product_name,image_url,ingredients_text,ingredients,code,brands&sort_by=unique_scans_n`;
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.products) {
+          this.searchResults = data.products
+            .filter((product: any) => product.product_name && product.ingredients && product.ingredients.length > 0)
+            .map((product: any) => this.getFoodFromOpenFoodFacts(product));
+        } else {
+          this.searchResults = [];
+        }
+        this.searchLoading = false;
+      })
+      .catch((error) => {
+        console.log(error);
+        this.searchResults = [];
+        this.searchLoading = false;
+      });
+  }
+
+  selectProduct(food: Food) {
+    this.searchActive = false;
+    this.scannerActive = false;
+    this.food = food;
+  }
+
+  lookupFoodUSDA(barcode: string): void {
     this.barcode = barcode;
     this.loading = true;
     const usdaApiUrl = `https://api.nal.usda.gov/fdc/v1/foods/search?query=${encodeURIComponent(barcode)}&pageSize=1&api_key=tyk58FSKxVyNkZEpBUaEKtGRIXhDOBwTyVekPw4W`;
@@ -155,34 +212,41 @@ export class App implements OnInit {
         console.log('USDA API response:', response);
         if (response.totalHits > 0 && response.foods[0]?.ingredients) {
           this.setFoodFromUsda(response);
-          this.loading = false;
-        } else {
-          this.lookupOpenFoodFacts(barcode);
-        }
-      },
-      error => {
-        console.error('USDA API error:', error);
-        this.lookupOpenFoodFacts(barcode);
-      }
-    );
-  }
-
-  private lookupOpenFoodFacts(barcode: string): void {
-    const offApiUrl = `https://world.openfoodfacts.net/api/v2/product/${encodeURIComponent(barcode)}`;
-    this.http.get<OpenFoodFactsResponse>(offApiUrl).subscribe(
-      offResponse => {
-        console.log('Open Food Facts API response:', offResponse);
-        if (offResponse && offResponse.product) {
-          this.setFoodFromOpenFoodFacts(offResponse);
         } else {
           this.setFoodNotFound();
         }
         this.loading = false;
       },
-      offError => {
-        console.error('Open Food Facts API error:', offError);
+      error => {
+        console.error('USDA API error:', error);
         this.setFoodNotFound();
         this.loading = false;
+      }
+    );
+  }
+
+  closeFoodCard() {
+    this.food = null;
+    this.scannerActive = false;
+    this.searchResults = [];
+    this.searchText = '';
+    this.searchActive = false;
+  }
+
+  lookupOpenFoodFacts(barcode: string): void {
+    const offApiUrl = `https://world.openfoodfacts.net/api/v2/product/${encodeURIComponent(barcode)}&fields=product_name,image_url,ingredients_text,ingredients,code,brands`;
+    this.http.get<OpenFoodFactsResponse>(offApiUrl).subscribe(
+      offResponse => {
+        console.log('Open Food Facts API response:', offResponse);
+        if (offResponse && offResponse.product) {
+          this.food = this.getFoodFromOpenFoodFacts(offResponse.product);
+        } else {
+          this.lookupFoodUSDA(barcode);
+        }
+      },
+      offError => {
+        console.error('Open Food Facts API error:', offError);
+        this.lookupFoodUSDA(barcode);
       }
     );
   }
@@ -200,28 +264,32 @@ export class App implements OnInit {
     this.food = {
       description: foodData.description,
       ingredients: [],
-      sweeteners: []
+      sweeteners: [],
+      brand: foodData.brandName
     };
     this.food.ingredients = this.parseIngredients(foodData.ingredients);
     this.food.sweeteners = this.getSweetenersFromIngredients(this.food.ingredients);
   }
 
-  private setFoodFromOpenFoodFacts(response: OpenFoodFactsResponse): void {
-    const product = response.product;
-    this.food = {
+  private getFoodFromOpenFoodFacts(product: OpenFoodFactsResponseProduct): Food {
+    const food: Food = {
+      barcode: product.code,
       description: product.product_name,
       ingredients: [],
-      sweeteners: []
+      sweeteners: [],
+      imageUrl: product.image_url,
+      brand: product.brands ? product.brands.split(',')[0].trim() : undefined
     };
     if (product.ingredients && product.ingredients.length > 0) {
       product.ingredients.forEach(ingredient => {
-        this.food?.ingredients.push({
+        food?.ingredients.push({
           name: ingredient.text,
           sweetener: this.findSweetener(ingredient.text)
         });
       });
-      this.food.sweeteners = this.getSweetenersFromIngredients(this.food.ingredients);
+      food.sweeteners = this.getSweetenersFromIngredients(food.ingredients);
     }
+    return food;
   }
 
   private parseIngredients(ingredientsText: string): Ingredient[] {

@@ -1,83 +1,125 @@
-<div *ngIf="!scannerActive">
-  <h1 class="app-main-title">
-    Sweet Spotter
-  </h1>
-  <p class="text-padding" style="text-align: center;">Easily locate non-nutritive sweeteners in a product by scanning the barcode</p>
+<div style="padding-left: 5px; padding-right: 5px;">
+  <div *ngIf="!scannerActive && !searchActive">
+    <h1 class="app-main-title">
+      Sweet Spotter
+    </h1>
+    <p class="text-padding" style="text-align: center;">Easily locate non-nutritive sweeteners in a product by scanning the barcode or searching by name</p>
+    <div style="display: flex; justify-content: center; gap: 1em; margin-top: 1em; margin-bottom: 1em;">
+      <button class="scan-btn" (click)="scannerActive = true" [disabled]="loading">Scan Barcode</button>
+      <button class="search-btn" (click)="startTextSearch()" [disabled]="loading">Search by Name</button>
+    </div>
+  </div>
+  <div *ngIf="searchActive">
+    <h2 style="text-align: center;">Search for a Product</h2>
+    <form (submit)="searchProducts(); $event.preventDefault()" style="display: flex; justify-content: center; gap: 0.5em; margin-bottom: 1.5em;">
+      <input type="text" [(ngModel)]="searchText" name="searchText" placeholder="Enter product name..." class="search-input" autofocus autocomplete="off" />
+      <button type="submit" class="search-btn" [disabled]="searchLoading || !searchText.trim()">Search</button>
+      <button type="button" class="cancel-btn" (click)="searchActive = false">Cancel</button>
+    </form>
+    <div *ngIf="searchLoading" style="text-align: center;">
+      <mat-progress-spinner style="margin: auto;" mode="indeterminate"></mat-progress-spinner>
+    </div>
+    <table *ngIf="searchResults && searchResults.length > 0" class="search-results-table styled-table">
+      <thead>
+        <tr>
+          <th style="width: 60px;">Image</th>
+          <th>Product Name</th>
+          <th>Barcode</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let result of searchResults" (click)="selectProduct(result)" class="search-row">
+          <td>
+            <img *ngIf="result.imageUrl" [src]="result.imageUrl" alt="Product image" class="search-thumb" />
+          </td>
+          <td class="search-product-name">{{ result.description }}</td>
+          <td class="search-product-barcode">{{ result.barcode }}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div *ngIf="searchResults && searchResults.length === 0 && !searchLoading && searchText.trim()" style="text-align: center; margin-top: 2em;">
+      <p>No products found.</p>
+    </div>
+  </div>
+  <div *ngIf="loading">
+    <mat-progress-spinner style="margin: auto;" mode="indeterminate"></mat-progress-spinner>
+  </div>
+  <app-scanner *ngIf="!loading && scannerActive" [(scannerActive)]="scannerActive" (foodScanned)="lookupOpenFoodFacts($event)"></app-scanner>
+  <div *ngIf="!scannerActive && food" class="food-card">
+    <button
+      (click)="closeFoodCard()"
+      aria-label="Close"
+      class="food-card-close">
+      &times;
+    </button>
+    <div class="food-title">{{ food.description | titlecase }} {{foodBrand | titlecase}}</div>
+    <div *ngIf="food.ingredients && food.ingredients.length > 0 && food.sweeteners?.length === 0" class="text-padding">
+      <p class="no-sweeteners">No non-nutritive sweeteners found for this item</p>
+    </div>
+    <div *ngIf="food?.sweeteners && food.sweeteners.length > 0" class="sweetener-highlight">
+      <span *ngFor="let s of food.sweeteners"
+        [ngClass]="{
+          'sweetener-chip': true,
+          'sweetener-green': s?.rating === 'Safe',
+          'sweetener-yellow': s?.rating === 'Caution',
+          'sweetener-red': s?.rating === 'Avoid'
+        }">
+        {{ s?.name | titlecase }} ({{s?.rating}})
+      </span>
+    </div>
+
+    <div *ngIf="food.imageUrl" class="food-image">
+      <img [src]="food.imageUrl" alt="Product image" />
+    </div>
+
+    <div *ngIf="foodNotFound" class="text-padding">
+      <p>
+        Barcode {{barcode}} not found. Try scanning again or pick a different item.
+        <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>
+      </p>
+    </div>
+
+    <div *ngIf="!foodNotFound && (!food.ingredients || food.ingredients.length === 0)" class="text-padding">
+      <p class="no-ingredients">
+        No ingredients found for this item.
+        <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>
+      </p>
+    </div>
+
+    <!-- Ingredient List with Sweetener Badge -->
+    <ul class="ingredient-list">
+      <ng-container *ngFor="let ingredient of food.ingredients | orderBySweetener">
+        <li class="ingredient-top"
+            [ngClass]="{
+              'sweetener': ingredient.sweetener,
+              'sweetener-green': ingredient.sweetener?.rating === 'Safe',
+              'sweetener-yellow': ingredient.sweetener?.rating === 'Caution',
+              'sweetener-red': ingredient.sweetener?.rating === 'Avoid'
+            }"
+            style="display: flex; align-items: center; justify-content: space-between;">
+          <span style="display: flex; align-items: center;">
+            <span class="ingredient-dot"></span>
+            <span style="margin-left: 0.5em;">{{ ingredient.name | titlecase }}</span>
+          </span>
+          <span *ngIf="ingredient.sweetener" class="sweet-badge"
+            [ngClass]="{
+              'sweetener-chip': true,
+              'sweetener-green': ingredient?.sweetener?.rating === 'Safe',
+              'sweetener-yellow': ingredient?.sweetener?.rating === 'Caution',
+              'sweetener-red': ingredient?.sweetener?.rating === 'Avoid'
+            }">
+              {{ ingredient.sweetener.name | titlecase }}
+          </span>
+        </li>
+      </ng-container>
+    </ul>
+  </div>
+
+  <app-sweetener-table *ngIf="!food && !scannerActive && searchResults.length === 0" [sweeteners]="sweeteners"></app-sweetener-table>
+
+  <ng-template #wantToHelpTemplate>
+    Want to help? Add data for this product to <a href="https://world.openfoodfacts.org/contribute" target="_blank" rel="noopener">Open Food Facts</a>
+  </ng-template>
+
+  <router-outlet />
 </div>
-<div *ngIf="loading">
-  <mat-progress-spinner style="margin: auto;" mode="indeterminate"></mat-progress-spinner>
-</div>
-<app-scanner *ngIf="!loading" [(scannerActive)]="scannerActive" (foodScanned)="lookupFood($event)"></app-scanner>
-<div *ngIf="!scannerActive && food" class="food-card">
-  <button
-    (click)="food = null"
-    aria-label="Close"
-    class="food-card-close">
-    &times;
-  </button>
-  <div class="food-title">{{ food.description | titlecase }}</div>
-  <div *ngIf="food.ingredients && food.ingredients.length > 0 && food.sweeteners?.length === 0" class="text-padding">
-    <p class="no-sweeteners">No non-nutritive sweeteners found for this item</p>
-  </div>
-  <div *ngIf="food?.sweeteners && food.sweeteners.length > 0" class="sweetener-highlight">
-    <span *ngFor="let s of food.sweeteners"
-      [ngClass]="{
-        'sweetener-chip': true,
-        'sweetener-green': s?.rating === 'Safe',
-        'sweetener-yellow': s?.rating === 'Caution',
-        'sweetener-red': s?.rating === 'Avoid'
-      }">
-      {{ s?.name | titlecase }} ({{s?.rating}})
-    </span>
-  </div>
-
-  <div *ngIf="foodNotFound" class="text-padding">
-    <p>
-      Barcode {{barcode}} not found. Try scanning again or pick a different item.
-      <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>
-    </p>
-  </div>
-
-  <div *ngIf="!foodNotFound && (!food.ingredients || food.ingredients.length === 0)" class="text-padding">
-    <p class="no-ingredients">
-      No ingredients found for this item.
-      <ng-container *ngTemplateOutlet="wantToHelpTemplate"></ng-container>
-    </p>
-  </div>
-
-  <!-- Ingredient List with Sweetener Badge -->
-  <ul class="ingredient-list">
-    <ng-container *ngFor="let ingredient of food.ingredients | orderBySweetener">
-      <li class="ingredient-top"
-          [ngClass]="{
-            'sweetener': ingredient.sweetener,
-            'sweetener-green': ingredient.sweetener?.rating === 'Safe',
-            'sweetener-yellow': ingredient.sweetener?.rating === 'Caution',
-            'sweetener-red': ingredient.sweetener?.rating === 'Avoid'
-          }"
-          style="display: flex; align-items: center; justify-content: space-between;">
-        <span style="display: flex; align-items: center;">
-          <span class="ingredient-dot"></span>
-          <span style="margin-left: 0.5em;">{{ ingredient.name | titlecase }}</span>
-        </span>
-        <span *ngIf="ingredient.sweetener" class="sweet-badge"
-          [ngClass]="{
-            'sweetener-chip': true,
-            'sweetener-green': ingredient?.sweetener?.rating === 'Safe',
-            'sweetener-yellow': ingredient?.sweetener?.rating === 'Caution',
-            'sweetener-red': ingredient?.sweetener?.rating === 'Avoid'
-          }">
-            {{ ingredient.sweetener.name | titlecase }}
-        </span>
-      </li>
-    </ng-container>
-  </ul>
-</div>
-
-<app-sweetener-table *ngIf="!food && !scannerActive" [sweeteners]="sweeteners"></app-sweetener-table>
-
-<ng-template #wantToHelpTemplate>
-  Want to help? Add data for this product to <a href="https://world.openfoodfacts.org/contribute" target="_blank" rel="noopener">Open Food Facts</a>
-</ng-template>
-
-<router-outlet />

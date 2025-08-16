@@ -1,3 +1,104 @@
+// Food image styling
+.food-image {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1.5em 0 1em 0;
+}
+.food-image img {
+  max-width: 180px;
+  max-height: 180px;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.13);
+  background: #232336;
+  object-fit: contain;
+  padding: 0.5em;
+}
+// Search input and button styles
+.search-input {
+  width: 300px;
+  padding: 0.5em 1em;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 1em;
+  background: #fff;
+  transition: border 0.2s;
+}
+.search-input:focus {
+  border: 1.5px solid #ff5ca7;
+  outline: none;
+}
+.search-btn {
+  background: #ff5ca7;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5em 1.5em;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.search-btn:disabled {
+  background: #f3b3d0;
+  cursor: not-allowed;
+}
+.cancel-btn {
+  background: #eee;
+  color: #444;
+  border: none;
+  border-radius: 6px;
+  padding: 0.5em 1.5em;
+  font-size: 1em;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.cancel-btn:hover {
+  background: #ddd;
+}
+
+// Search results table styles
+
+.styled-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin-top: 1em;
+  background: #181a20;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+.styled-table th, .styled-table td {
+  padding: 0.75em 1em;
+  text-align: left;
+}
+.styled-table th {
+  background: #23242a;
+  font-weight: 700;
+  color: #ff5ca7;
+  border-bottom: 2px solid #ff5ca7;
+}
+.styled-table tr.search-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.styled-table tr.search-row:hover {
+  background: #23242a;
+}
+.search-thumb {
+  max-width: 48px;
+  max-height: 48px;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+  background: #23242a;
+}
+.search-product-name {
+  font-size: 1.05em;
+  font-weight: 500;
+  color: #f3f3fa;
+}
 // File: src/app/app.scss
 
 .food-card {
