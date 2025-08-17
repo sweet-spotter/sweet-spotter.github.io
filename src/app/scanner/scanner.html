@@ -5,11 +5,8 @@
     </button>
     <mat-form-field *ngIf="cameras && cameras.length > 1" subscriptSizing="dynamic" class="camera-select">
       <mat-label>Camera</mat-label>
-      <mat-select [(value)]="selectedCameraId">
-        <mat-option></mat-option>
-        @for (camera of cameras; track camera) {
-          <mat-option [value]="camera.id">{{ camera.label }}</mat-option>
-        }
+      <mat-select [(value)]="selectedCameraId" (selectionChange)="onCameraChange($event)">
+        <mat-option *ngFor="let camera of cameras" [value]="camera.id">{{ camera.label }}</mat-option>
       </mat-select>
     </mat-form-field>
   </ng-container>

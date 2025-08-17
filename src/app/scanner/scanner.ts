@@ -1,4 +1,4 @@
-import { Component, EventEmitter, inject, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, inject, Input, OnInit, Output, OnChanges, SimpleChanges } from '@angular/core';
 import { CameraDevice, Html5Qrcode } from "html5-qrcode";
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -13,7 +13,7 @@ import { MatSelectModule } from '@angular/material/select';
   templateUrl: './scanner.html',
   styleUrl: './scanner.scss'
 })
-export class ScannerComponent implements OnInit {
+export class ScannerComponent implements OnInit, OnChanges {
   @Input() scannerActive = false;
   @Output() scannerActiveChange = new EventEmitter<boolean>();
   @Output() foodScanned = new EventEmitter<string>();  
@@ -29,6 +29,19 @@ export class ScannerComponent implements OnInit {
 
   ngOnInit(): void {}
 
+  ngOnChanges(changes: SimpleChanges): void {
+    if (changes['scannerActive']) {
+      const current = changes['scannerActive'].currentValue;
+      if (current) {
+        // Parent activated scanner
+        this.startScanner();
+      } else {
+        // Parent deactivated scanner
+        this.closeScanner();
+      }
+    }
+  }
+
   toggleScanner() {
     this.changeScannerActive(!this.scannerActive);
     if (this.scannerActive) {
@@ -38,7 +51,7 @@ export class ScannerComponent implements OnInit {
     }
   }
 
-  onCameraChange(event: Event): void {
+  onCameraChange(event: any): void {
     if (this.scannerActive) {
       this.closeScanner();
       setTimeout(() => this.initScanner(), 0);
